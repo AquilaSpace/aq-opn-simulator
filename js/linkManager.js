@@ -285,6 +285,7 @@ function _createLinkVisuals(link) {
     // Direction arrow (small cone at midpoint)
     const mid = new THREE.Vector3().lerpVectors(points[0], points[1], 0.5);
     const dir = new THREE.Vector3().subVectors(points[1], points[0]).normalize();
+    const linkLength = points[0].distanceTo(points[1]);
     const arrowGeo = new THREE.ConeGeometry(0.04, 0.12, 6);
     const arrowMat = new THREE.MeshBasicMaterial({
         color: statusDef.colour,
@@ -296,6 +297,21 @@ function _createLinkVisuals(link) {
     arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
     arrow.name = 'arrow';
     group.add(arrow);
+
+    // Invisible cylinder for reliable click detection
+    const hitRadius = Math.max(0.08, linkLength * 0.003);
+    const hitGeo = new THREE.CylinderGeometry(hitRadius, hitRadius, linkLength, 6, 1);
+    const hitMat = new THREE.MeshBasicMaterial({
+        visible: false,
+        transparent: true,
+        opacity: 0,
+    });
+    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    hitMesh.position.copy(mid);
+    hitMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    hitMesh.name = 'hitTarget';
+    hitMesh.raycast = THREE.Mesh.prototype.raycast; // Ensure raycast works even when invisible
+    group.add(hitMesh);
 
     _linkGroup.add(group);
     link.mesh = group;
@@ -342,6 +358,17 @@ function _updateLinkVisuals(link) {
         if (child.isPoints && child.name === 'particles') {
             child.material.color.setHex(beamColour);
             child.material.opacity = isInactive ? 0 : 0.8;
+        }
+        if (child.isMesh && child.name === 'hitTarget') {
+            const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
+            const dir = new THREE.Vector3().subVectors(to, from).normalize();
+            const linkLength = from.distanceTo(to);
+            child.position.copy(mid);
+            child.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+            // Rebuild geometry for new length
+            child.geometry.dispose();
+            const hitRadius = Math.max(0.08, linkLength * 0.003);
+            child.geometry = new THREE.CylinderGeometry(hitRadius, hitRadius, linkLength, 6, 1);
         }
     });
 }

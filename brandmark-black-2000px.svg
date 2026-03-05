@@ -1,12 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="2000" height="2000">
-  <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4a9eff;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  <circle cx="100" cy="100" r="90" fill="none" stroke="url(#g)" stroke-width="4"/>
-  <path d="M100 25 L145 140 H55 Z" fill="none" stroke="url(#g)" stroke-width="4" stroke-linejoin="round"/>
-  <circle cx="100" cy="100" r="20" fill="none" stroke="url(#g)" stroke-width="3"/>
-  <line x1="100" y1="80" x2="100" y2="25" stroke="url(#g)" stroke-width="2"/>
+<svg width="2000" height="2000" viewBox="0 0 2000 2000" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_4_123)">
+<path d="M416.801 2000L-1.72909 2000L-1.72909 1989.95C19.3116 1988.95 66.9895 1989.08 113.39 1985.97C668.692 1948.74 784.058 1830.72 1386.2 1280.3C1490.38 1185.08 1557.14 1112.78 1594.47 1069.38C1620.63 1038.96 1632.34 1022.73 1632.34 1022.73C1632.34 1022.73 1718.39 938.573 1821.68 1000C1821.68 938.573 1727.39 908.913 1687.78 882.575C1537.67 765.151 1451.01 840.307 1337.07 864.321C1337.07 412.763 706.623 15.7822 -0.65625 10.0502L-0.65625 -8.74363e-05L416.801 9.07353e-08C1053.23 7.00519e-08 1679.42 692.384 1999.65 997.033C1560.39 1526.51 780.327 2000 416.801 2000Z" fill="#0C0C0C"/>
+</g>
+<defs>
+<clipPath id="clip0_4_123">
+<rect width="2000" height="2000" fill="white"/>
+</clipPath>
+</defs>
 </svg>

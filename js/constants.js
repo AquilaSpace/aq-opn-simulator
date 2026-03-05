@@ -257,6 +257,7 @@ export const CAMERA_PRESETS = {
     GEO_BELT:        { label: 'GEO Belt',          position: [0, 20, 60],  target: [0, 0, 0] },
     CISLUNAR:        { label: 'Cislunar',           position: [0, 50, 250], target: [0, 0, 100] },
     LUNAR_SURFACE:   { label: 'Lunar Surface',      position: [0, 10, 390], target: [0, 0, 384.4] },
+    SYDNEY:          { label: 'Sydney (Ground)',     position: [2.58, -3.50, -4.60], target: [2.55, -3.55, -4.64] },
 };
 
 // ---------------------------------------------------------------------------

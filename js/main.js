@@ -29,6 +29,7 @@ import { computeNetworkMetrics } from './networkGraph.js';
 import { initTimeController, updateTimeController } from './timeController.js';
 import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
 import { downloadJSON, importFromFile, exportScreenshot, importNetwork } from './serialisation.js';
+import { initTerrestrial, updateTerrestrial } from './terrestrial.js';
 
 // ---------------------------------------------------------------------------
 // Scene, Camera, Renderer
@@ -40,7 +41,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
     50,
     canvas.clientWidth / canvas.clientHeight,
-    0.01,
+    0.001,
     2000
 );
 camera.position.set(0, 8, 25);
@@ -56,7 +57,7 @@ renderer.toneMappingExposure = 1.0;
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = EARTH_RADIUS * 1.1;
+controls.minDistance = EARTH_RADIUS * 1.001; // Allow close-to-surface zoom
 controls.maxDistance = 600;
 controls.target.set(0, 0, 0);
 controls.update();
@@ -86,9 +87,6 @@ let gridVisible = true;
 const moonMesh = createMoon();
 scene.add(moonMesh);
 
-// Earth auto-rotate state
-let autoRotate = true;
-const earthRotateSpeed = 0.0003; // radians per frame
 
 // ---------------------------------------------------------------------------
 // Camera presets
@@ -149,6 +147,12 @@ onLinkChange(() => {
 // ---------------------------------------------------------------------------
 
 initTimeController(moonMesh);
+
+// ---------------------------------------------------------------------------
+// Terrestrial detail
+// ---------------------------------------------------------------------------
+
+initTerrestrial(scene, camera, controls);
 
 // ---------------------------------------------------------------------------
 // Export state for other modules
@@ -435,14 +439,15 @@ function _raycastNodes(event) {
 function _raycastLinks(event) {
     _updateMouse(event);
     raycaster.setFromCamera(mouse, camera);
-    raycaster.params.Line = { threshold: 0.15 }; // Increase hit area for lines
 
     const linkGroup = getLinkGroup();
     if (!linkGroup) return null;
 
+    // Raycast against all children (invisible hitTarget cylinders will catch clicks)
     const intersects = raycaster.intersectObjects(linkGroup.children, true);
-    if (intersects.length > 0) {
-        let obj = intersects[0].object;
+    for (const hit of intersects) {
+        // Walk up to find the link group with linkId
+        let obj = hit.object;
         while (obj && !obj.userData.linkId) {
             obj = obj.parent;
         }
@@ -511,15 +516,6 @@ function setupUIBindings() {
             goToPreset(btn.dataset.cameraPreset);
         });
     });
-
-    // Auto-rotate toggle
-    const rotateToggle = document.getElementById('auto-rotate');
-    if (rotateToggle) {
-        rotateToggle.checked = autoRotate;
-        rotateToggle.addEventListener('change', () => {
-            autoRotate = rotateToggle.checked;
-        });
-    }
 
     // Grid toggle
     const gridToggle = document.getElementById('grid-toggle');
@@ -630,13 +626,6 @@ function animate() {
     const dt = (now - _lastTime) / 1000;
     _lastTime = now;
 
-    // Earth rotation
-    if (autoRotate) {
-        earthMesh.rotation.y += earthRotateSpeed;
-        earthAtmosphere.rotation.y = earthMesh.rotation.y;
-        gridOverlay.rotation.y = earthMesh.rotation.y;
-    }
-
     // Camera animation
     updateCameraAnimation();
 
@@ -648,6 +637,9 @@ function animate() {
 
     // Update time controller (orbital propagation)
     updateTimeController(dt);
+
+    // Update terrestrial detail tiles
+    updateTerrestrial();
 
     controls.update();
     renderer.render(scene, camera);
