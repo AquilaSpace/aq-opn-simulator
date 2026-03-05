@@ -26,3 +26,22 @@ Lat/lon to Cartesian: x = R*cos(lat)*sin(lon), y = R*sin(lat), z = R*cos(lat)*co
 - All node/link state lives in nodeManager.js and linkManager.js respectively. UI files read from these, never own state.
 - physics.js must have zero imports from other project files (except constants.js). Keep it testable in isolation.
 - British English for all prose and user-facing strings.
+
+## Key Modules
+- `constants.js` — Scale factors, physical constants, node type registry, beam types, coordinate helpers
+- `physics.js` — Pure link budget calculations (aperture-to-aperture model), atmospheric attenuation, LOS
+- `nodeManager.js` — Node CRUD, Three.js mesh creation, selection, dragging
+- `linkManager.js` — Link CRUD, beam rendering with particles, status colour coding
+- `linkBudget.js` — Wraps physics.js for per-link budget computation with node parameters
+- `orbitalMechanics.js` — Keplerian propagation (Newton-Raphson Kepler solver), ECI→scene coords
+- `timeController.js` — Play/pause/speed, epoch display, orbital + Moon propagation tick
+- `optimiser.js` — Greedy relay placement heuristic
+- `serialisation.js` — JSON import/export, PNG screenshot
+- `main.js` — Orchestrator, scene setup, interaction (raycasting, click-to-add, shift+click links)
+
+## Gotchas
+- Lunar nodes use scene coordinates (x,y,z) not lat/lon, since they are on the Moon surface
+- ECI→scene mapping: Three.js Y=ECI Z(north), Three.js Z=ECI X, Three.js X=ECI Y
+- OrbitControls are disabled during node drag to prevent camera movement
+- Link recomputation is throttled at 10 Hz during time playback for performance
+- GitHub Pages deployed via Actions workflow from develop branch
