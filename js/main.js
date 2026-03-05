@@ -27,6 +27,8 @@ import {
 import { showLinkInspector } from './linkInspector.js';
 import { computeNetworkMetrics } from './networkGraph.js';
 import { initTimeController, updateTimeController } from './timeController.js';
+import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
+import { downloadJSON, importFromFile, exportScreenshot, importNetwork } from './serialisation.js';
 
 // ---------------------------------------------------------------------------
 // Scene, Camera, Renderer
@@ -558,6 +560,47 @@ function setupUIBindings() {
             setAtmCondition(atmCondEl.value);
         });
     }
+
+    // Header buttons: Import/Export/Screenshot
+    const btnExport = document.getElementById('btn-export');
+    if (btnExport) btnExport.addEventListener('click', downloadJSON);
+
+    const btnImport = document.getElementById('btn-import');
+    if (btnImport) btnImport.addEventListener('click', () => {
+        importFromFile();
+        // After import, update UI
+        setTimeout(() => { updateNodeList(); updateStats(); }, 200);
+    });
+
+    const btnScreenshot = document.getElementById('btn-screenshot');
+    if (btnScreenshot) btnScreenshot.addEventListener('click', () => {
+        exportScreenshot(canvas, renderer, scene, camera);
+    });
+
+    // Optimiser button
+    const btnOptimise = document.getElementById('btn-optimise');
+    if (btnOptimise) {
+        btnOptimise.disabled = false;
+        btnOptimise.addEventListener('click', () => {
+            const suggestions = autoSuggestRelays();
+            if (suggestions.length === 0) {
+                alert('No relay suggestions — either all customers are reachable directly, or no source/customer nodes exist.');
+                return;
+            }
+            const accepted = confirm(
+                `Optimiser suggests ${suggestions.length} relay(s):\n\n` +
+                suggestions.map((s, i) => `${i + 1}. ${s.type} — ${s.reason}`).join('\n') +
+                '\n\nAccept all suggestions?'
+            );
+            if (accepted) {
+                for (const s of suggestions) {
+                    acceptSuggestion(s);
+                }
+                updateNodeList();
+                updateStats();
+            }
+        });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -615,6 +658,148 @@ function animate() {
 // ---------------------------------------------------------------------------
 
 setupUIBindings();
+
+// ---------------------------------------------------------------------------
+// Demo scene (loaded on first visit)
+// ---------------------------------------------------------------------------
+
+function loadDemoScene() {
+    const demoNetwork = {
+        version: '1.0.0',
+        metadata: {
+            name: 'Demo Network',
+            created: '2025-03-05T12:00:00Z',
+            description: 'Earth-Moon optical power relay demonstration',
+        },
+        globalSettings: {
+            beamType: 'YB_FIBRE',
+            atmosphericCondition: 'clear',
+            epoch: '2025-03-05T12:00:00Z',
+        },
+        nodes: [
+            {
+                id: 'node-001',
+                type: 'GROUND_SOURCE',
+                name: 'Sydney Solar Farm',
+                position: { lat_deg: -33.86, lon_deg: 151.21, alt_km: 0 },
+                params: {
+                    transmitPower_kW: 50,
+                    apertureDiameter_m: 0.5,
+                    trackingAccuracy_mrad: 0.1,
+                    transmitterEfficiency: 0.85,
+                    totalAvailablePower_kW: 100,
+                    outputBeams: 4,
+                },
+            },
+            {
+                id: 'node-002',
+                type: 'GROUND_SOURCE',
+                name: 'Mojave Power Station',
+                position: { lat_deg: 35.05, lon_deg: -117.18, alt_km: 0 },
+                params: {
+                    transmitPower_kW: 100,
+                    apertureDiameter_m: 0.6,
+                    trackingAccuracy_mrad: 0.08,
+                    transmitterEfficiency: 0.88,
+                    totalAvailablePower_kW: 200,
+                    outputBeams: 6,
+                },
+            },
+            {
+                id: 'node-003',
+                type: 'GROUND_CUSTOMER',
+                name: 'Pilbara Mine Site',
+                position: { lat_deg: -22.3, lon_deg: 118.8, alt_km: 0 },
+                params: {
+                    requiredPower_kW: 20,
+                    apertureDiameter_m: 0.6,
+                    trackingAccuracy_mrad: 0.15,
+                },
+            },
+            {
+                id: 'node-004',
+                type: 'GROUND_RELAY',
+                name: 'Nullarbor Relay',
+                position: { lat_deg: -31.0, lon_deg: 130.0, alt_km: 0 },
+                params: {
+                    transmitPower_kW: 40,
+                    apertureDiameter_m: 0.4,
+                    trackingAccuracy_mrad: 0.1,
+                    transmitterEfficiency: 0.80,
+                    receiveAperture_m: 0.5,
+                    retransmitEfficiency: 0.75,
+                    maxSimultaneousLinks: 4,
+                },
+            },
+            {
+                id: 'node-005',
+                type: 'ORBITAL_RELAY',
+                name: 'Pacific GEO Relay',
+                position: { lat_deg: 0, lon_deg: -170, alt_km: 35786 },
+                params: {
+                    transmitPower_kW: 30,
+                    apertureDiameter_m: 0.3,
+                    trackingAccuracy_mrad: 0.05,
+                    transmitterEfficiency: 0.80,
+                    receiveAperture_m: 0.4,
+                    retransmitEfficiency: 0.70,
+                    maxSimultaneousLinks: 6,
+                    orbitalElements: {
+                        semiMajorAxis_km: 42164,
+                        eccentricity: 0,
+                        inclination_deg: 0,
+                        raan_deg: 0,
+                        argOfPerigee_deg: 0,
+                        trueAnomaly_deg: 190,
+                    },
+                },
+            },
+            {
+                id: 'node-006',
+                type: 'GROUND_CUSTOMER',
+                name: 'Tokyo Receiver',
+                position: { lat_deg: 35.68, lon_deg: 139.69, alt_km: 0 },
+                params: {
+                    requiredPower_kW: 30,
+                    apertureDiameter_m: 0.5,
+                    trackingAccuracy_mrad: 0.12,
+                },
+            },
+            {
+                id: 'node-007',
+                type: 'LUNAR_NODE',
+                name: 'Shackleton Base',
+                // Lunar south pole — positioned on Moon surface
+                // Moon initial position is at (0, 0, 384.4) scene units
+                // Shackleton is near lunar south pole, so offset in -Y from Moon centre
+                position: { x: 0, y: -1.737, z: 384.4 },
+                params: {
+                    transmitPower_kW: 5,
+                    apertureDiameter_m: 0.3,
+                    trackingAccuracy_mrad: 0.2,
+                    transmitterEfficiency: 0.80,
+                    requiredPower_kW: 10,
+                },
+            },
+        ],
+        links: [
+            { id: 'link-001', from: 'node-001', to: 'node-004', wavelength_nm: null },
+            { id: 'link-002', from: 'node-004', to: 'node-003', wavelength_nm: null },
+            { id: 'link-003', from: 'node-001', to: 'node-005', wavelength_nm: null },
+            { id: 'link-004', from: 'node-005', to: 'node-002', wavelength_nm: null },
+            { id: 'link-005', from: 'node-001', to: 'node-006', wavelength_nm: null },
+            { id: 'link-006', from: 'node-002', to: 'node-005', wavelength_nm: null },
+        ],
+    };
+
+    importNetwork(demoNetwork);
+    updateNodeList();
+    updateStats();
+}
+
+// Load demo scene
+loadDemoScene();
+
 animate();
 
 console.log('Aquila OPN Simulator initialised.');
