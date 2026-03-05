@@ -38,10 +38,15 @@ Lat/lon to Cartesian: x = R*cos(lat)*sin(lon), y = R*sin(lat), z = R*cos(lat)*co
 - `optimiser.js` — Greedy relay placement heuristic
 - `serialisation.js` — JSON import/export, PNG screenshot
 - `main.js` — Orchestrator, scene setup, interaction (raycasting, click-to-add, shift+click links)
+- `terrestrial.js` — OpenStreetMap tile overlay for ground-level detail when camera zooms close
 
 ## Gotchas
+- Earth does NOT rotate — nodes are in world space, so rotation would desync them from the globe texture
 - Lunar nodes use scene coordinates (x,y,z) not lat/lon, since they are on the Moon surface
 - ECI→scene mapping: Three.js Y=ECI Z(north), Three.js Z=ECI X, Three.js X=ECI Y
 - OrbitControls are disabled during node drag to prevent camera movement
+- Link click detection uses invisible cylinder meshes (hitTarget) — Line raycasting is unreliable
 - Link recomputation is throttled at 10 Hz during time playback for performance
+- Terrestrial tiles (OpenStreetMap) appear automatically when camera is within ~960 km of Earth surface
+- Brandmark SVG is dark (#0C0C0C); CSS `filter: invert(1)` makes it visible on dark theme
 - GitHub Pages deployed via Actions workflow from develop branch

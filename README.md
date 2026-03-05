@@ -17,7 +17,8 @@ Interactive 3D simulation tool for designing and analysing laser/optical wireles
 - **Orbital Mechanics** — Keplerian propagation for satellite nodes; time controller with play/pause/speed for dynamic link analysis
 - **Relay Optimiser** — Greedy heuristic auto-suggests relay placements to connect sources to customers
 - **Serialisation** — JSON export/import of full network state; PNG viewport screenshot
-- **Camera Presets** — Quick viewpoint switching with smooth animated transitions
+- **Terrestrial Zoom** — Zoom into city/landscape level with OpenStreetMap tile overlay for ground-level node placement
+- **Camera Presets** — Quick viewpoint switching with smooth animated transitions (Earth, LEO, GEO, Cislunar, Moon, Sydney ground level)
 - **Demo Scene** — Pre-built Earth–Moon power relay network loaded on first visit
 
 ## Running Locally
@@ -64,7 +65,8 @@ aq-opn-simulator/
 │   ├── networkGraph.js     # Network topology state, metrics
 │   ├── serialisation.js    # JSON export/import, PNG export
 │   ├── sceneHelpers.js     # Lighting, starfield, coordinate axes
-│   └── cameraPresets.js    # Named camera positions
+│   ├── cameraPresets.js    # Named camera positions
+│   └── terrestrial.js      # Ground-level OpenStreetMap tile overlay
 ```
 
 ## Key Concepts
