@@ -26,6 +26,7 @@ import {
 } from './linkManager.js';
 import { showLinkInspector } from './linkInspector.js';
 import { computeNetworkMetrics } from './networkGraph.js';
+import { initTimeController, updateTimeController } from './timeController.js';
 
 // ---------------------------------------------------------------------------
 // Scene, Camera, Renderer
@@ -140,6 +141,12 @@ onLinkSelect((linkId) => {
 onLinkChange(() => {
     updateStats();
 });
+
+// ---------------------------------------------------------------------------
+// Time controller
+// ---------------------------------------------------------------------------
+
+initTimeController(moonMesh);
 
 // ---------------------------------------------------------------------------
 // Export state for other modules
@@ -595,6 +602,9 @@ function animate() {
 
     // Update link particle animations
     updateLinkAnimations(dt);
+
+    // Update time controller (orbital propagation)
+    updateTimeController(dt);
 
     controls.update();
     renderer.render(scene, camera);
