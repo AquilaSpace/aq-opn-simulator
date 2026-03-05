@@ -4,7 +4,8 @@ Interactive 3D simulation tool for designing and analysing laser/optical wireles
 
 **[Live Demo](https://aquilaspace.github.io/aq-opn-simulator/)**
 
-![Screenshot placeholder](screenshot.png)
+<img width="3200" height="1660" alt="Screenshot 2026-03-05 200506" src="https://github.com/user-attachments/assets/55ca67b9-1f44-4284-a9ce-15663857225d" />
+
 
 ## Features
 
