@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aquila OPN Simulator — Optical Power Network</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+
+<!-- ========== Header ========== -->
+<header id="header">
+    <img src="brandmark-black-2000px.svg" class="logo" alt="Aquila">
+    <span class="title">Aquila OPN Simulator</span>
+    <div class="spacer"></div>
+    <button id="btn-import" title="Import network from JSON">Import</button>
+    <button id="btn-export" title="Export network as JSON">Export</button>
+    <button id="btn-screenshot" title="Save viewport screenshot">Screenshot</button>
+</header>
+
+<!-- ========== Main layout ========== -->
+<div id="app">
+
+    <!-- ---- Sidebar ---- -->
+    <aside id="sidebar">
+
+        <!-- Network Overview -->
+        <div class="panel" id="panel-network">
+            <div class="panel-header">Network Overview</div>
+            <div class="panel-body">
+                <div class="network-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Nodes</span>
+                        <span class="stat-value" id="stat-nodes">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Links</span>
+                        <span class="stat-value" id="stat-links">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Active</span>
+                        <span class="stat-value" id="stat-active" style="color: var(--link-active)">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Marginal</span>
+                        <span class="stat-value" id="stat-marginal" style="color: var(--link-marginal)">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Broken</span>
+                        <span class="stat-value" id="stat-broken" style="color: var(--link-broken)">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Power Gen.</span>
+                        <span class="stat-value" id="stat-power-gen">0 kW</span>
+                    </div>
+                </div>
+                <div class="node-list" id="node-list">
+                    <div class="empty-state">No nodes yet. Click on the Earth to add one.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Node Editor (hidden until a node is selected) -->
+        <div class="panel" id="panel-node-editor" style="display: none;">
+            <div class="panel-header">Node Editor</div>
+            <div class="panel-body" id="node-editor-body">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Link Inspector (hidden until a link is selected) -->
+        <div class="panel" id="panel-link-inspector" style="display: none;">
+            <div class="panel-header">Link Inspector</div>
+            <div class="panel-body" id="link-inspector-body">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Beam Settings -->
+        <div class="panel" id="panel-beam">
+            <div class="panel-header">Beam Settings</div>
+            <div class="panel-body">
+                <div class="control-row">
+                    <label for="beam-type">Beam type</label>
+                    <select id="beam-type">
+                        <option value="YB_FIBRE" selected>Yb Fibre (1080 nm)</option>
+                        <option value="EYE_SAFE">Eye-Safe (1550 nm)</option>
+                        <option value="GREEN_532">Green (532 nm)</option>
+                        <option value="CUSTOM">Custom</option>
+                    </select>
+                </div>
+                <div class="control-row" id="custom-wavelength-row" style="display: none;">
+                    <label for="custom-wavelength">Wavelength</label>
+                    <input type="number" id="custom-wavelength" value="1080" min="200" max="10000" step="1">
+                    <span style="font-size: 10px; color: var(--text-dim);">nm</span>
+                </div>
+                <div class="control-row">
+                    <label for="atm-condition">Atmosphere</label>
+                    <select id="atm-condition">
+                        <option value="clear" selected>Clear</option>
+                        <option value="haze">Haze</option>
+                        <option value="rain">Light Rain</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera -->
+        <div class="panel" id="panel-camera">
+            <div class="panel-header">Camera</div>
+            <div class="panel-body">
+                <div class="camera-presets">
+                    <button class="btn btn-sm" data-camera-preset="EARTH_OVERVIEW">Earth</button>
+                    <button class="btn btn-sm" data-camera-preset="LEO">LEO</button>
+                    <button class="btn btn-sm" data-camera-preset="GEO_BELT">GEO</button>
+                    <button class="btn btn-sm" data-camera-preset="CISLUNAR">Cislunar</button>
+                    <button class="btn btn-sm" data-camera-preset="LUNAR_SURFACE">Moon</button>
+                </div>
+                <div style="margin-top: 8px;">
+                    <div class="toggle-row">
+                        <span>Auto-rotate</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-rotate" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <span>Grid overlay</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="grid-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Optimiser (placeholder) -->
+        <div class="panel collapsed" id="panel-optimiser">
+            <div class="panel-header">Optimiser</div>
+            <div class="panel-body">
+                <div class="empty-state">Configure sources and customers, then click Auto-Suggest.</div>
+                <button class="btn btn-primary" id="btn-optimise" style="width: 100%; margin-top: 8px;" disabled>Auto-Suggest Relays</button>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- ---- 3D Viewport ---- -->
+    <div id="viewport-container">
+        <canvas id="viewport"></canvas>
+        <div class="viewport-info">
+            Shift+click to create links &middot; Click Earth to add nodes &middot; Del to remove
+        </div>
+    </div>
+
+</div>
+
+<!-- ========== Time bar ========== -->
+<div id="timebar">
+    <div class="time-controls">
+        <button id="time-reset" title="Reset to epoch">⏮</button>
+        <button id="time-play" title="Play / Pause">▶</button>
+        <button id="time-step" title="Step forward">⏭</button>
+    </div>
+    <input type="range" class="time-slider" id="time-slider" min="0" max="86400" value="0">
+    <div class="speed-buttons">
+        <button class="active" data-speed="1">1×</button>
+        <button data-speed="10">10×</button>
+        <button data-speed="100">100×</button>
+        <button data-speed="1000">1000×</button>
+    </div>
+    <div class="epoch-display" id="epoch-display">2025-03-05 12:00:00 UTC</div>
+</div>
+
+<!-- ========== Application entry point ========== -->
+<script type="module" src="js/main.js"></script>
+
+</body>
+</html>
