@@ -18,6 +18,14 @@ import {
 } from './nodeManager.js';
 import { showNodeEditor } from './nodeEditor.js';
 import { updateNetworkStats } from './uiPanel.js';
+import {
+    initLinkManager, createLink, removeLink, selectLink, removeLinksForNode,
+    getSelectedLinkId, getAllLinks, getLinkGroup, getLinkCount,
+    setBeamType, setAtmCondition, recomputeAllLinks,
+    onLinkSelect, onLinkChange, updateLinkAnimations,
+} from './linkManager.js';
+import { showLinkInspector } from './linkInspector.js';
+import { computeNetworkMetrics } from './networkGraph.js';
 
 // ---------------------------------------------------------------------------
 // Scene, Camera, Renderer
@@ -91,14 +99,45 @@ initCameraPresets(camera, controls);
 
 initNodeManager(scene, camera);
 
-// Wire up node selection → editor panel
+// Wire node deletion to remove connected links
+const _origRemoveNode = removeNode;
+// We patch via event listener instead
+onNodeChange(() => {
+    // When a node is removed, linkManager should clean up its links.
+    // We handle this in the removeNode override below.
+    updateNodeList();
+    updateStats();
+});
+
+// Override removeNode to also remove links
+const _removeNodeAndLinks = (id) => {
+    removeLinksForNode(id);
+    _origRemoveNode(id);
+};
+
+// Wire up node selection → editor panel + deselect link
 onNodeSelect((nodeId) => {
     showNodeEditor(nodeId);
+    if (nodeId) {
+        selectLink(null); // Deselect link when node is selected
+    }
     updateNodeList();
 });
 
-onNodeChange(() => {
-    updateNodeList();
+// ---------------------------------------------------------------------------
+// Link manager
+// ---------------------------------------------------------------------------
+
+initLinkManager(scene);
+
+onLinkSelect((linkId) => {
+    showLinkInspector(linkId);
+    if (linkId) {
+        selectNode(null); // Deselect node when link is selected
+    }
+});
+
+onLinkChange(() => {
     updateStats();
 });
 
@@ -112,6 +151,30 @@ export function getEarthMesh() { return earthMesh; }
 export function getMoonMesh() { return moonMesh; }
 
 // ---------------------------------------------------------------------------
+// Link creation mode
+// ---------------------------------------------------------------------------
+
+let _linkCreationSource = null; // nodeId of source for link creation
+
+function _startLinkCreation(nodeId) {
+    _linkCreationSource = nodeId;
+    canvas.style.cursor = 'crosshair';
+}
+
+function _completeLinkCreation(targetNodeId) {
+    if (_linkCreationSource && targetNodeId && _linkCreationSource !== targetNodeId) {
+        createLink(_linkCreationSource, targetNodeId);
+    }
+    _linkCreationSource = null;
+    canvas.style.cursor = '';
+}
+
+function _cancelLinkCreation() {
+    _linkCreationSource = null;
+    canvas.style.cursor = '';
+}
+
+// ---------------------------------------------------------------------------
 // Raycasting & interaction
 // ---------------------------------------------------------------------------
 
@@ -123,9 +186,7 @@ const _dragPlane = new THREE.Plane();
 const _dragIntersect = new THREE.Vector3();
 let _mouseDownPos = new THREE.Vector2();
 
-/**
- * Context menu for adding nodes — appears on Earth surface click.
- */
+// Context menu for adding nodes
 let _addMenuEl = null;
 
 function _createAddMenu() {
@@ -139,7 +200,7 @@ function _createAddMenu() {
     `;
 
     for (const [key, typeDef] of Object.entries(NODE_TYPES)) {
-        if (key === 'ORBITAL_RELAY') continue; // Added differently
+        if (key === 'ORBITAL_RELAY') continue;
         const item = document.createElement('div');
         item.style.cssText = `
             padding: 6px 12px; cursor: pointer; font-size: 12px;
@@ -156,7 +217,7 @@ function _createAddMenu() {
         _addMenuEl.appendChild(item);
     }
 
-    // Orbital relay option
+    // Orbital relay
     const orbItem = document.createElement('div');
     orbItem.style.cssText = `
         padding: 6px 12px; cursor: pointer; font-size: 12px;
@@ -176,7 +237,7 @@ function _createAddMenu() {
     document.body.appendChild(_addMenuEl);
 }
 
-let _pendingAddPos = null; // { lat_deg, lon_deg, alt_km }
+let _pendingAddPos = null;
 
 function _showAddMenu(screenX, screenY, position) {
     if (!_addMenuEl) _createAddMenu();
@@ -200,21 +261,19 @@ function _addNodeAtPending(type) {
     selectNode(node.id);
 }
 
-/**
- * Handle mouse down on viewport.
- */
 function onMouseDown(event) {
     _mouseDownPos.set(event.clientX, event.clientY);
     _hideAddMenu();
 
-    // Check if we hit an existing node (for drag start)
+    // Don't start drag if in link creation mode
+    if (_linkCreationSource) return;
+
     const hit = _raycastNodes(event);
-    if (hit) {
+    if (hit && !event.shiftKey) {
         _isDragging = true;
         _dragNode = hit.nodeId;
         controls.enabled = false;
 
-        // Create drag plane perpendicular to camera through the node
         const node = getNode(hit.nodeId);
         if (node) {
             const normal = new THREE.Vector3().subVectors(camera.position, node.mesh.position).normalize();
@@ -223,9 +282,6 @@ function onMouseDown(event) {
     }
 }
 
-/**
- * Handle mouse move on viewport.
- */
 function onMouseMove(event) {
     if (!_isDragging || !_dragNode) return;
 
@@ -236,7 +292,6 @@ function onMouseMove(event) {
         const node = getNode(_dragNode);
         if (!node) return;
 
-        // Constrain ground nodes to Earth surface
         if (node.type.startsWith('GROUND_') || node.type === 'MOBILE_NODE') {
             const dir = _dragIntersect.clone().normalize();
             const alt_km = node.position.alt_km || 0;
@@ -245,12 +300,10 @@ function onMouseMove(event) {
         }
 
         moveNode(_dragNode, _dragIntersect);
+        recomputeAllLinks(); // Update links as node is dragged
     }
 }
 
-/**
- * Handle mouse up on viewport.
- */
 function onMouseUp(event) {
     const wasDragging = _isDragging;
     const dragDistance = _mouseDownPos.distanceTo(new THREE.Vector2(event.clientX, event.clientY));
@@ -259,52 +312,87 @@ function onMouseUp(event) {
     _dragNode = null;
     controls.enabled = true;
 
-    // If it was a drag, don't process as click
     if (wasDragging && dragDistance > 5) return;
 
-    // Click processing
     _updateMouse(event);
 
-    // Check for node click
+    // Shift+click on node → link creation
+    if (event.shiftKey) {
+        const nodeHit = _raycastNodes(event);
+        if (nodeHit) {
+            if (_linkCreationSource) {
+                _completeLinkCreation(nodeHit.nodeId);
+            } else {
+                const selectedId = getSelectedNodeId();
+                if (selectedId) {
+                    // Create link from selected to shift-clicked node
+                    createLink(selectedId, nodeHit.nodeId);
+                } else {
+                    // Start link creation from this node
+                    _startLinkCreation(nodeHit.nodeId);
+                }
+            }
+            return;
+        }
+        _cancelLinkCreation();
+        return;
+    }
+
+    // Cancel link creation if clicking without shift
+    if (_linkCreationSource) {
+        _cancelLinkCreation();
+    }
+
+    // Node click
     const nodeHit = _raycastNodes(event);
     if (nodeHit) {
         selectNode(nodeHit.nodeId);
         return;
     }
 
-    // Check for Earth surface click → show add menu
+    // Link click
+    const linkHit = _raycastLinks(event);
+    if (linkHit) {
+        selectLink(linkHit.linkId);
+        return;
+    }
+
+    // Earth surface click → add menu
     raycaster.setFromCamera(mouse, camera);
     const earthHits = raycaster.intersectObject(earthMesh);
     if (earthHits.length > 0) {
         const point = earthHits[0].point;
-        // Account for Earth rotation
         const invMatrix = new THREE.Matrix4().copy(earthMesh.matrixWorld).invert();
         const localPoint = point.clone().applyMatrix4(invMatrix);
         const pos = sceneToLatLonAlt(localPoint.x, localPoint.y, localPoint.z);
-
         _showAddMenu(event.clientX, event.clientY, { lat_deg: pos.lat_deg, lon_deg: pos.lon_deg, alt_km: 0 });
         return;
     }
 
-    // Click on empty space → deselect
+    // Empty space → deselect all
     selectNode(null);
+    selectLink(null);
 }
 
-/**
- * Handle keyboard shortcuts.
- */
 function onKeyDown(event) {
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') return;
+
     if (event.key === 'Delete' || event.key === 'Backspace') {
-        // Don't delete if focus is in an input field
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') return;
-        const selectedId = getSelectedNodeId();
-        if (selectedId) {
-            removeNode(selectedId);
+        const selectedNodeId = getSelectedNodeId();
+        if (selectedNodeId) {
+            _removeNodeAndLinks(selectedNodeId);
+            return;
+        }
+        const selectedLinkId = getSelectedLinkId();
+        if (selectedLinkId) {
+            removeLink(selectedLinkId);
         }
     }
 
     if (event.key === 'Escape') {
         selectNode(null);
+        selectLink(null);
+        _cancelLinkCreation();
         _hideAddMenu();
     }
 }
@@ -324,7 +412,6 @@ function _raycastNodes(event) {
 
     const intersects = raycaster.intersectObjects(nodeGroup.children, true);
     if (intersects.length > 0) {
-        // Walk up to find the node group with nodeId
         let obj = intersects[0].object;
         while (obj && !obj.userData.nodeId) {
             obj = obj.parent;
@@ -336,12 +423,31 @@ function _raycastNodes(event) {
     return null;
 }
 
+function _raycastLinks(event) {
+    _updateMouse(event);
+    raycaster.setFromCamera(mouse, camera);
+    raycaster.params.Line = { threshold: 0.15 }; // Increase hit area for lines
+
+    const linkGroup = getLinkGroup();
+    if (!linkGroup) return null;
+
+    const intersects = raycaster.intersectObjects(linkGroup.children, true);
+    if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        while (obj && !obj.userData.linkId) {
+            obj = obj.parent;
+        }
+        if (obj && obj.userData.linkId) {
+            return { linkId: obj.userData.linkId };
+        }
+    }
+    return null;
+}
+
 canvas.addEventListener('mousedown', onMouseDown);
 canvas.addEventListener('mousemove', onMouseMove);
 canvas.addEventListener('mouseup', onMouseUp);
 window.addEventListener('keydown', onKeyDown);
-
-// Close add menu on scroll/right-click
 canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); _hideAddMenu(); });
 window.addEventListener('wheel', () => _hideAddMenu());
 
@@ -380,21 +486,9 @@ function updateNodeList() {
 }
 
 function updateStats() {
-    const nodes = getAllNodes();
-    let powerGen = 0;
-    for (const n of nodes) {
-        if (n.type === 'GROUND_SOURCE') {
-            powerGen += n.params.totalAvailablePower_kW || 0;
-        }
-    }
-    updateNetworkStats({
-        nodeCount: nodes.length,
-        linkCount: 0,
-        activeLinks: 0,
-        marginalLinks: 0,
-        brokenLinks: 0,
-        powerGenerated: powerGen,
-    });
+    const links = getAllLinks();
+    const metrics = computeNetworkMetrics(links);
+    updateNetworkStats(metrics);
 }
 
 // ---------------------------------------------------------------------------
@@ -436,12 +530,25 @@ function setupUIBindings() {
         });
     });
 
-    // Beam type → custom wavelength visibility
+    // Beam type selector
     const beamTypeEl = document.getElementById('beam-type');
     const customWlRow = document.getElementById('custom-wavelength-row');
-    if (beamTypeEl && customWlRow) {
+    if (beamTypeEl) {
         beamTypeEl.addEventListener('change', () => {
-            customWlRow.style.display = beamTypeEl.value === 'CUSTOM' ? '' : 'none';
+            if (customWlRow) {
+                customWlRow.style.display = beamTypeEl.value === 'CUSTOM' ? '' : 'none';
+            }
+            if (beamTypeEl.value !== 'CUSTOM') {
+                setBeamType(beamTypeEl.value);
+            }
+        });
+    }
+
+    // Atmospheric condition selector
+    const atmCondEl = document.getElementById('atm-condition');
+    if (atmCondEl) {
+        atmCondEl.addEventListener('change', () => {
+            setAtmCondition(atmCondEl.value);
         });
     }
 }
@@ -464,8 +571,14 @@ window.addEventListener('resize', onResize);
 // Render loop
 // ---------------------------------------------------------------------------
 
+let _lastTime = performance.now();
+
 function animate() {
     requestAnimationFrame(animate);
+
+    const now = performance.now();
+    const dt = (now - _lastTime) / 1000;
+    _lastTime = now;
 
     // Earth rotation
     if (autoRotate) {
@@ -479,6 +592,9 @@ function animate() {
 
     // Update billboard labels
     updateLabels();
+
+    // Update link particle animations
+    updateLinkAnimations(dt);
 
     controls.update();
     renderer.render(scene, camera);

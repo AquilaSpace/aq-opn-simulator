@@ -1,0 +1,129 @@
+/**
+ * linkBudget.js — Per-link budget calculations. Calls physics.js, formats results for UI.
+ */
+
+import {
+    computeLinkBudget,
+    computeAtmosphericTransmission,
+    computeElevationAngle,
+    computeDistance_km,
+    checkLineOfSight,
+    getAltitude_km,
+    getExtinction,
+} from './physics.js';
+import { getNode } from './nodeManager.js';
+import { BEAM_TYPES, MARGINAL_THRESHOLD_DB } from './constants.js';
+
+/**
+ * Compute the full link budget for a link between two nodes.
+ *
+ * @param {object} link        — link data { fromId, toId, wavelength_nm, ... }
+ * @param {string} beamTypeKey — global beam type key (e.g. 'YB_FIBRE')
+ * @param {string} atmCondKey  — atmospheric condition key (e.g. 'clear')
+ * @returns {object|null} budget result, or null if nodes missing
+ */
+export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
+    const fromNode = getNode(link.fromId);
+    const toNode = getNode(link.toId);
+    if (!fromNode || !toNode) return null;
+
+    // Determine wavelength: per-link override or global
+    let wavelength_m;
+    let effectiveBeamKey = beamTypeKey;
+    if (link.wavelength_nm) {
+        wavelength_m = link.wavelength_nm * 1e-9;
+        // Find matching beam type for extinction
+        for (const [k, v] of Object.entries(BEAM_TYPES)) {
+            if (v.wavelength_nm === link.wavelength_nm) {
+                effectiveBeamKey = k;
+                break;
+            }
+        }
+    } else {
+        const beam = BEAM_TYPES[beamTypeKey];
+        wavelength_m = beam ? beam.wavelength_m : 1080e-9;
+    }
+
+    // Positions in scene coordinates
+    const p1 = fromNode.scenePos;
+    const p2 = toNode.scenePos;
+
+    // Distance
+    const distance_km = computeDistance_km(p1, p2);
+    const distance_m = distance_km * 1000;
+
+    // Line of sight
+    const losOk = checkLineOfSight(p1, p2);
+
+    // Altitudes
+    const alt1_km = getAltitude_km(p1);
+    const alt2_km = getAltitude_km(p2);
+
+    // Elevation angle (from the lower endpoint)
+    const lowerPos = alt1_km < alt2_km ? p1 : p2;
+    const higherPos = alt1_km < alt2_km ? p2 : p1;
+    const elevAngle_rad = computeElevationAngle(lowerPos, higherPos);
+
+    // Atmospheric attenuation
+    const extinction = getExtinction(effectiveBeamKey, atmCondKey);
+    const atmTransmission = computeAtmosphericTransmission(alt1_km, alt2_km, elevAngle_rad, extinction);
+
+    // Node parameters
+    const txPower_kW = fromNode.params.transmitPower_kW || 0;
+    const txPower_W = txPower_kW * 1000;
+    const txEfficiency = fromNode.params.transmitterEfficiency || 0.85;
+    const txAperture = fromNode.params.apertureDiameter_m || 0.3;
+    const rxAperture = toNode.params.receiveAperture_m || toNode.params.apertureDiameter_m || 0.3;
+    const trackingJitter_rad = (fromNode.params.trackingAccuracy_mrad || 0.1) * 1e-3;
+
+    // Compute budget
+    const budget = computeLinkBudget({
+        txPower_W,
+        txEfficiency,
+        txApertureDiameter_m: txAperture,
+        rxApertureDiameter_m: rxAperture,
+        distance_m,
+        wavelength_m,
+        txPointingJitter_rad: trackingJitter_rad,
+        atmosphericLoss: atmTransmission,
+    });
+
+    // Required power (from receiver node)
+    const requiredPower_kW = toNode.params.requiredPower_kW || 0;
+    const requiredPower_dBW = requiredPower_kW > 0
+        ? 10 * Math.log10(requiredPower_kW * 1000)
+        : -Infinity;
+
+    // Link margin relative to required power
+    const marginOverRequired_dB = requiredPower_kW > 0
+        ? budget.rxPower_dBW - requiredPower_dBW
+        : Infinity; // No requirement → always sufficient
+
+    // Status classification
+    let status;
+    if (!losOk) {
+        status = 'BROKEN';
+    } else if (txPower_kW <= 0) {
+        status = 'INACTIVE';
+    } else if (requiredPower_kW > 0 && marginOverRequired_dB < 0) {
+        status = 'BROKEN';
+    } else if (requiredPower_kW > 0 && marginOverRequired_dB < MARGINAL_THRESHOLD_DB) {
+        status = 'MARGINAL';
+    } else {
+        status = 'ACTIVE';
+    }
+
+    return {
+        ...budget,
+        losOk,
+        alt1_km,
+        alt2_km,
+        elevAngle_rad,
+        elevAngle_deg: elevAngle_rad * 180 / Math.PI,
+        extinctionCoeff: extinction,
+        requiredPower_kW,
+        requiredPower_dBW,
+        marginOverRequired_dB,
+        status,
+    };
+}
