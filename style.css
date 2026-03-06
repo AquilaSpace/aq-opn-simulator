@@ -712,7 +712,8 @@ html, body {
 #dashboard-hud #hud-actions,
 #dashboard-hud #hud-speed,
 #dashboard-hud .dash-speed-btn,
-#dashboard-hud .hud-btn {
+#dashboard-hud .hud-btn,
+#dashboard-hud .hud-stat[data-tooltip] {
     pointer-events: auto;
 }
 
@@ -957,4 +958,29 @@ body.dashboard-view #dashboard-hud {
     #sidebar.open {
         left: 0;
     }
+}
+
+/* --- Info Tooltip ------------------------------------------ */
+.info-tooltip {
+    position: fixed;
+    display: none;
+    max-width: 320px;
+    padding: 8px 12px;
+    background: #1e1e32ee;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-tooltip] {
+    cursor: help;
 }

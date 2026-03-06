@@ -6,6 +6,7 @@ import { getLink, removeLink, selectLink } from './linkManager.js';
 import { getNode } from './nodeManager.js';
 import { LINK_STATUS, BEAM_TYPES, MARGINAL_THRESHOLD_DB } from './constants.js';
 import { createButton, createSectionTitle } from './uiPanel.js';
+import { TOOLTIPS } from './tooltip.js';
 
 const _panelEl = document.getElementById('panel-link-inspector');
 const _bodyEl = document.getElementById('link-inspector-body');
@@ -67,26 +68,28 @@ export function showLinkInspector(linkId) {
         const table = document.createElement('table');
         table.className = 'budget-table';
 
+        // [label, value, tooltipKey]
         const rows = [
-            ['Transmit power', `${b.txPower_kW.toFixed(2)} kW (${b.txPower_dBW.toFixed(1)} dBW)`],
-            ['Tx efficiency', `${(b.txEfficiency * 100).toFixed(1)}% (${b.efficiencyLoss_dB.toFixed(2)} dB)`],
-            ['Wavelength', `${b.wavelength_nm.toFixed(0)} nm`],
-            ['Link distance', `${b.distance_km.toFixed(1)} km`],
-            ['Beam divergence', `${b.divergence_mrad.toFixed(3)} mrad`],
-            ['Beam ⌀ at Rx', `${b.beamDiameterAtRx_m.toFixed(2)} m`],
-            ['Tx aperture', `${b.txApertureDiameter_m.toFixed(3)} m`],
-            ['Rx aperture', `${b.rxApertureDiameter_m.toFixed(3)} m`],
-            ['Capture fraction', `${(b.rxCaptureFraction * 100).toFixed(4)}% (${b.captureLoss_dB.toFixed(2)} dB)`],
-            ['Pointing loss', `${b.pointingLoss_dB.toFixed(2)} dB`],
-            ['Atmospheric loss', `${b.atmosphericLoss_dB.toFixed(2)} dB`],
-            ['Total path loss', `${b.totalPathLoss_dB.toFixed(2)} dB`],
-            ['Elevation angle', `${b.elevAngle_deg.toFixed(1)}°`],
-            ['LOS clear', b.losOk ? 'Yes' : 'BLOCKED'],
+            ['Transmit power', `${b.txPower_kW.toFixed(2)} kW (${b.txPower_dBW.toFixed(1)} dBW)`, 'budget-tx-power'],
+            ['Tx efficiency', `${(b.txEfficiency * 100).toFixed(1)}% (${b.efficiencyLoss_dB.toFixed(2)} dB)`, 'budget-tx-efficiency'],
+            ['Wavelength', `${b.wavelength_nm.toFixed(0)} nm`, 'budget-wavelength'],
+            ['Link distance', `${b.distance_km.toFixed(1)} km`, 'budget-distance'],
+            ['Beam divergence', `${b.divergence_mrad.toFixed(3)} mrad`, 'budget-divergence'],
+            ['Beam \u2300 at Rx', `${b.beamDiameterAtRx_m.toFixed(2)} m`, 'budget-beam-diameter'],
+            ['Tx aperture', `${b.txApertureDiameter_m.toFixed(3)} m`, 'budget-tx-aperture'],
+            ['Rx aperture', `${b.rxApertureDiameter_m.toFixed(3)} m`, 'budget-rx-aperture'],
+            ['Capture fraction', `${(b.rxCaptureFraction * 100).toFixed(4)}% (${b.captureLoss_dB.toFixed(2)} dB)`, 'budget-capture'],
+            ['Pointing loss', `${b.pointingLoss_dB.toFixed(2)} dB`, 'budget-pointing'],
+            ['Atmospheric loss', `${b.atmosphericLoss_dB.toFixed(2)} dB`, 'budget-atm-loss'],
+            ['Total path loss', `${b.totalPathLoss_dB.toFixed(2)} dB`, 'budget-path-loss'],
+            ['Elevation angle', `${b.elevAngle_deg.toFixed(1)}\u00b0`, 'budget-elevation'],
+            ['LOS clear', b.losOk ? 'Yes' : 'BLOCKED', 'budget-los'],
         ];
 
-        for (const [label, value] of rows) {
+        for (const [label, value, tipKey] of rows) {
             const tr = document.createElement('tr');
             tr.innerHTML = `<td>${label}</td><td>${value}</td>`;
+            if (TOOLTIPS[tipKey]) tr.setAttribute('data-tooltip', TOOLTIPS[tipKey]);
             if (label === 'LOS clear' && !b.losOk) {
                 tr.children[1].style.color = 'var(--link-broken)';
                 tr.children[1].style.fontWeight = '700';
@@ -94,9 +97,9 @@ export function showLinkInspector(linkId) {
             table.appendChild(tr);
         }
 
-        // Result rows
+        // Result rows: [label, value, cssClass, tooltipKey]
         const resultRows = [
-            ['Received power', `${b.rxPower_kW.toFixed(4)} kW (${b.rxPower_dBW.toFixed(1)} dBW)`, 'budget-result'],
+            ['Received power', `${b.rxPower_kW.toFixed(4)} kW (${b.rxPower_dBW.toFixed(1)} dBW)`, 'budget-result', 'budget-rx-power'],
         ];
 
         if (b.requiredPower_kW > 0) {
@@ -104,6 +107,7 @@ export function showLinkInspector(linkId) {
                 'Required power',
                 `${b.requiredPower_kW.toFixed(2)} kW (${b.requiredPower_dBW.toFixed(1)} dBW)`,
                 '',
+                'budget-required',
             ]);
 
             const marginClass = b.marginOverRequired_dB < 0
@@ -116,12 +120,14 @@ export function showLinkInspector(linkId) {
                 'Link margin',
                 `${b.marginOverRequired_dB.toFixed(2)} dB`,
                 'budget-result ' + marginClass,
+                'budget-margin',
             ]);
         }
 
-        for (const [label, value, cls] of resultRows) {
+        for (const [label, value, cls, tipKey] of resultRows) {
             const tr = document.createElement('tr');
             tr.innerHTML = `<td>${label}</td><td class="${cls}">${value}</td>`;
+            if (tipKey && TOOLTIPS[tipKey]) tr.setAttribute('data-tooltip', TOOLTIPS[tipKey]);
             table.appendChild(tr);
         }
 

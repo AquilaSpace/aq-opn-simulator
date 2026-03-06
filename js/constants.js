@@ -67,9 +67,9 @@ export const BEAM_TYPES = {
         label: 'Yb Fibre (Aquila default)',
         wavelength_nm: 1080,
         wavelength_m: 1080e-9,
-        extinctionClear_dBpkm: 0.20,
-        extinctionHaze_dBpkm: 3.0,
-        extinctionRain_dBpkm: 10.0,
+        extinctionClear_dBpkm: 0.20,  // clear sky sea-level, near-IR window
+        extinctionHaze_dBpkm: 1.5,    // moderate haze (~5 km visibility)
+        extinctionRain_dBpkm: 4.0,    // light rain (~2.5 mm/hr)
         visColour: 0xff6622,
         visColourHex: '#ff6622',
     },
@@ -77,9 +77,9 @@ export const BEAM_TYPES = {
         label: 'Eye-Safe Telecom (1550 nm)',
         wavelength_nm: 1550,
         wavelength_m: 1550e-9,
-        extinctionClear_dBpkm: 0.15,
-        extinctionHaze_dBpkm: 2.5,
-        extinctionRain_dBpkm: 8.0,
+        extinctionClear_dBpkm: 0.15,  // 1550 nm atmospheric window
+        extinctionHaze_dBpkm: 1.2,    // moderate haze
+        extinctionRain_dBpkm: 3.0,    // light rain
         visColour: 0xcc44ff,
         visColourHex: '#cc44ff',
     },
@@ -87,9 +87,9 @@ export const BEAM_TYPES = {
         label: 'Freq-Doubled Green (532 nm)',
         wavelength_nm: 532,
         wavelength_m: 532e-9,
-        extinctionClear_dBpkm: 0.35,
-        extinctionHaze_dBpkm: 5.0,
-        extinctionRain_dBpkm: 15.0,
+        extinctionClear_dBpkm: 0.35,  // visible band, higher Rayleigh scattering
+        extinctionHaze_dBpkm: 2.5,    // moderate haze
+        extinctionRain_dBpkm: 6.0,    // light rain
         visColour: 0x00ff44,
         visColourHex: '#00ff44',
     },

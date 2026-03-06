@@ -32,6 +32,7 @@ import { getUptime, getUptimeString, resetUptime } from './uptimeTracker.js';
 import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
 import { downloadJSON, importFromFile, exportScreenshot, importNetwork } from './serialisation.js';
 import { initTerrestrial, updateTerrestrial } from './terrestrial.js';
+import { applyStaticTooltips, TOOLTIPS } from './tooltip.js';
 
 // ---------------------------------------------------------------------------
 // Scene, Camera, Renderer
@@ -1233,6 +1234,9 @@ setupDashboardBindings();
 
 // Load demo scene
 loadDemoScene();
+
+// Apply hover tooltips to static HTML elements
+applyStaticTooltips();
 
 // Default to customer view
 switchView('dashboard');

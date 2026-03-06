@@ -12,9 +12,16 @@ import {
     createButton, createSectionTitle,
 } from './uiPanel.js';
 import { getUptimeString } from './uptimeTracker.js';
+import { TOOLTIPS } from './tooltip.js';
 
 const _panelEl = document.getElementById('panel-node-editor');
 const _bodyEl = document.getElementById('node-editor-body');
+
+/** Attach a tooltip from the TOOLTIPS registry to an element. */
+function _tip(el, key) {
+    if (TOOLTIPS[key]) el.setAttribute('data-tooltip', TOOLTIPS[key]);
+    return el;
+}
 
 /**
  * Show the node editor for the given node id. Pass null to hide.
@@ -62,33 +69,33 @@ export function showNodeEditor(nodeId) {
     _bodyEl.appendChild(createSectionTitle('Position'));
 
     if (node.type.startsWith('GROUND_') || node.type === 'MOBILE_NODE' || node.type === 'LUNAR_NODE') {
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Latitude',
             id: 'ne-lat',
             min: -90, max: 90, step: 0.1,
             value: node.position.lat_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => _updatePosition(nodeId, { lat_deg: v }),
-        }));
+        }), 'ne-latitude'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Longitude',
             id: 'ne-lon',
             min: -180, max: 180, step: 0.1,
             value: node.position.lon_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => _updatePosition(nodeId, { lon_deg: v }),
-        }));
+        }), 'ne-longitude'));
 
         if (node.type === 'MOBILE_NODE') {
-            _bodyEl.appendChild(createSliderControl({
+            _bodyEl.appendChild(_tip(createSliderControl({
                 label: 'Altitude',
                 id: 'ne-alt',
                 min: 0, max: 50, step: 0.1,
                 value: (node.position.alt_km || 0),
                 unit: 'km',
                 onChange: (v) => _updatePosition(nodeId, { alt_km: v }),
-            }));
+            }), 'ne-altitude'));
         }
     }
 
@@ -117,163 +124,164 @@ export function showNodeEditor(nodeId) {
         }));
 
         const oe = node.params.orbitalElements || {};
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Semi-major',
             id: 'ne-sma',
             min: 6571, max: 400000, step: 100,
             value: oe.semiMajorAxis_km || 42164,
             unit: 'km',
             onChange: (v) => _updateOE(nodeId, { semiMajorAxis_km: v }),
-        }));
+        }), 'ne-sma'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Eccentricity',
             id: 'ne-ecc',
             min: 0, max: 0.99, step: 0.01,
             value: oe.eccentricity || 0,
             onChange: (v) => _updateOE(nodeId, { eccentricity: v }),
-        }));
+        }), 'ne-eccentricity'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Inclination',
             id: 'ne-inc',
             min: 0, max: 180, step: 0.1,
             value: oe.inclination_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => _updateOE(nodeId, { inclination_deg: v }),
-        }));
+        }), 'ne-inclination'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'RAAN',
             id: 'ne-raan',
             min: 0, max: 360, step: 0.1,
             value: oe.raan_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => _updateOE(nodeId, { raan_deg: v }),
-        }));
+        }), 'ne-raan'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Arg. Perigee',
             id: 'ne-aop',
             min: 0, max: 360, step: 0.1,
             value: oe.argOfPerigee_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => _updateOE(nodeId, { argOfPerigee_deg: v }),
-        }));
+        }), 'ne-aop'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'True Anomaly',
             id: 'ne-ta',
             min: 0, max: 360, step: 0.1,
             value: oe.trueAnomaly_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => _updateOE(nodeId, { trueAnomaly_deg: v }),
-        }));
+        }), 'ne-true-anomaly'));
     }
 
     // Common power parameters
     _bodyEl.appendChild(createSectionTitle('Power'));
 
     if (node.type !== 'GROUND_CUSTOMER') {
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Tx Power',
             id: 'ne-txpow',
             min: 0, max: 500, step: 1,
             value: node.params.transmitPower_kW || 0,
             unit: 'kW',
             onChange: (v) => updateNodeParams(nodeId, { transmitPower_kW: v }),
-        }));
+        }), 'ne-tx-power'));
 
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Tx Efficiency',
             id: 'ne-txeff',
             min: 0, max: 1, step: 0.01,
             value: node.params.transmitterEfficiency || 0.85,
             onChange: (v) => updateNodeParams(nodeId, { transmitterEfficiency: v }),
-        }));
+        }), 'ne-tx-efficiency'));
     }
 
-    _bodyEl.appendChild(createSliderControl({
+    _bodyEl.appendChild(_tip(createSliderControl({
         label: 'Aperture',
         id: 'ne-ap',
         min: 0.01, max: 2.0, step: 0.01,
         value: node.params.apertureDiameter_m || 0.3,
         unit: 'm',
         onChange: (v) => updateNodeParams(nodeId, { apertureDiameter_m: v }),
-    }));
+    }), 'ne-aperture'));
 
-    _bodyEl.appendChild(createSliderControl({
+    _bodyEl.appendChild(_tip(createSliderControl({
         label: 'Tracking',
         id: 'ne-track',
         min: 0.001, max: 5, step: 0.001,
         value: node.params.trackingAccuracy_mrad || 0.1,
         unit: 'mrad',
         onChange: (v) => updateNodeParams(nodeId, { trackingAccuracy_mrad: v }),
-    }));
+    }), 'ne-tracking'));
 
     // Source-specific
     if (node.type === 'GROUND_SOURCE') {
         _bodyEl.appendChild(createSectionTitle('Source'));
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Total Power',
             id: 'ne-totpow',
             min: 0, max: 1000, step: 1,
             value: node.params.totalAvailablePower_kW || 100,
             unit: 'kW',
             onChange: (v) => updateNodeParams(nodeId, { totalAvailablePower_kW: v }),
-        }));
-        _bodyEl.appendChild(createSliderControl({
+        }), 'ne-total-power'));
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Output Beams',
             id: 'ne-beams',
             min: 1, max: 20, step: 1,
             value: node.params.outputBeams || 4,
             onChange: (v) => updateNodeParams(nodeId, { outputBeams: v }),
-        }));
+        }), 'ne-output-beams'));
     }
 
     // Relay-specific
     if (node.type === 'GROUND_RELAY' || node.type === 'ORBITAL_RELAY') {
         _bodyEl.appendChild(createSectionTitle('Relay'));
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Rx Aperture',
             id: 'ne-rxap',
             min: 0.05, max: 2.0, step: 0.01,
             value: node.params.receiveAperture_m || 0.5,
             unit: 'm',
             onChange: (v) => updateNodeParams(nodeId, { receiveAperture_m: v }),
-        }));
-        _bodyEl.appendChild(createSliderControl({
+        }), 'ne-rx-aperture'));
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Re-tx Eff.',
             id: 'ne-rtxeff',
             min: 0, max: 1, step: 0.01,
             value: node.params.retransmitEfficiency || 0.75,
             onChange: (v) => updateNodeParams(nodeId, { retransmitEfficiency: v }),
-        }));
-        _bodyEl.appendChild(createSliderControl({
+        }), 'ne-retx-eff'));
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Max Links',
             id: 'ne-maxlinks',
             min: 1, max: 20, step: 1,
             value: node.params.maxSimultaneousLinks || 4,
             onChange: (v) => updateNodeParams(nodeId, { maxSimultaneousLinks: v }),
-        }));
+        }), 'ne-max-links'));
     }
 
     // Customer-specific
     if (node.type === 'GROUND_CUSTOMER' || node.type === 'ORBITAL_CUSTOMER' || node.type === 'LUNAR_NODE') {
         _bodyEl.appendChild(createSectionTitle('Customer'));
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Required',
             id: 'ne-reqpow',
             min: 0, max: 200, step: 0.5,
             value: node.params.requiredPower_kW || 20,
             unit: 'kW',
             onChange: (v) => updateNodeParams(nodeId, { requiredPower_kW: v }),
-        }));
+        }), 'ne-required-power'));
 
         // Uptime display (read-only, updated by time simulation)
         const uptimeRow = document.createElement('div');
         uptimeRow.className = 'control-row';
         uptimeRow.id = 'ne-uptime-row';
+        if (TOOLTIPS['ne-uptime']) uptimeRow.setAttribute('data-tooltip', TOOLTIPS['ne-uptime']);
         const uptimeLabel = document.createElement('label');
         uptimeLabel.textContent = 'Uptime';
         uptimeRow.appendChild(uptimeLabel);
@@ -292,22 +300,22 @@ export function showNodeEditor(nodeId) {
     // Mobile-specific
     if (node.type === 'MOBILE_NODE') {
         _bodyEl.appendChild(createSectionTitle('Mobile'));
-        _bodyEl.appendChild(createSliderControl({
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Speed',
             id: 'ne-speed',
             min: 0, max: 500, step: 1,
             value: node.params.speed_ms || 50,
             unit: 'm/s',
             onChange: (v) => updateNodeParams(nodeId, { speed_ms: v }),
-        }));
-        _bodyEl.appendChild(createSliderControl({
+        }), 'ne-speed'));
+        _bodyEl.appendChild(_tip(createSliderControl({
             label: 'Heading',
             id: 'ne-heading',
             min: 0, max: 360, step: 1,
             value: node.params.heading_deg || 0,
-            unit: '°',
+            unit: '\u00b0',
             onChange: (v) => updateNodeParams(nodeId, { heading_deg: v }),
-        }));
+        }), 'ne-heading'));
     }
 
     // Delete button

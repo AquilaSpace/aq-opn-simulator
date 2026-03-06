@@ -42,17 +42,23 @@ export function computeLinkBudget(opts) {
         atmosphericLoss = 1.0,
     } = opts;
 
-    // Diffraction-limited divergence half-angle (Airy disk first minimum: 1.22 λ/D)
+    // Gaussian beam model: beam waist = aperture radius, propagated to receiver distance.
+    // Far-field 1/e² divergence half-angle: θ = λ / (π w₀)
+    const w0_m = txApertureDiameter_m / 2; // beam waist radius
     const divergence_rad = opts.divergenceHalfAngle_rad
-        || (1.22 * wavelength_m / txApertureDiameter_m);
+        || (wavelength_m / (Math.PI * w0_m));
 
-    // Beam diameter at receiver distance
-    const beamDiameterAtRx_m = txApertureDiameter_m + 2 * distance_m * Math.tan(divergence_rad);
+    // Beam 1/e² radius at receiver: w(z) = w₀ √(1 + (z/z_R)²)
+    const rayleighRange_m = Math.PI * w0_m * w0_m / wavelength_m;
+    const wAtRx_m = w0_m * Math.sqrt(1 + (distance_m / rayleighRange_m) ** 2);
 
-    // Receiver capture fraction (ratio of receiver area to beam area, capped at 1)
+    // Beam 1/e² diameter at receiver (for display)
+    const beamDiameterAtRx_m = 2 * wAtRx_m;
+
+    // Gaussian capture fraction: η = 1 − exp(−2 (r_rx / w)²)
+    const rxRadius_m = rxApertureDiameter_m / 2;
     const rxCaptureFraction = Math.min(1.0,
-        (rxApertureDiameter_m * rxApertureDiameter_m) /
-        (beamDiameterAtRx_m * beamDiameterAtRx_m)
+        1 - Math.exp(-2 * (rxRadius_m / wAtRx_m) ** 2)
     );
 
     // Pointing loss: exp(-2 * (sigma_pointing / theta_div)^2)

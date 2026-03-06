@@ -38,27 +38,27 @@
             <div class="panel-header">Network Overview</div>
             <div class="panel-body">
                 <div class="network-stats">
-                    <div class="stat-item">
+                    <div class="stat-item" id="stat-nodes-item">
                         <span class="stat-label">Nodes</span>
                         <span class="stat-value" id="stat-nodes">0</span>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-item" id="stat-links-item">
                         <span class="stat-label">Links</span>
                         <span class="stat-value" id="stat-links">0</span>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-item" id="stat-active-item">
                         <span class="stat-label">Active</span>
                         <span class="stat-value" id="stat-active" style="color: var(--link-active)">0</span>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-item" id="stat-marginal-item">
                         <span class="stat-label">Marginal</span>
                         <span class="stat-value" id="stat-marginal" style="color: var(--link-marginal)">0</span>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-item" id="stat-broken-item">
                         <span class="stat-label">Broken</span>
                         <span class="stat-value" id="stat-broken" style="color: var(--link-broken)">0</span>
                     </div>
-                    <div class="stat-item">
+                    <div class="stat-item" id="stat-power-gen-item">
                         <span class="stat-label">Power Gen.</span>
                         <span class="stat-value" id="stat-power-gen">0 kW</span>
                     </div>
@@ -99,7 +99,7 @@
         <div class="panel" id="panel-beam">
             <div class="panel-header">Beam Settings</div>
             <div class="panel-body">
-                <div class="control-row">
+                <div class="control-row" id="beam-type-row">
                     <label for="beam-type">Beam type</label>
                     <select id="beam-type">
                         <option value="YB_FIBRE" selected>Yb Fibre (1080 nm)</option>
@@ -113,7 +113,7 @@
                     <input type="number" id="custom-wavelength" value="1080" min="200" max="10000" step="1">
                     <span style="font-size: 10px; color: var(--text-dim);">nm</span>
                 </div>
-                <div class="control-row">
+                <div class="control-row" id="atm-condition-row">
                     <label for="atm-condition">Atmosphere</label>
                     <select id="atm-condition">
                         <option value="clear" selected>Clear</option>
@@ -207,23 +207,23 @@
             <span class="hud-title">Aquila Optical Power Network</span>
         </div>
         <div class="hud-stats">
-            <div class="hud-stat">
+            <div class="hud-stat" id="dash-stat-sources-item">
                 <span class="hud-stat-value" id="dash-stat-sources">0</span>
                 <span class="hud-stat-label">POWER SOURCES</span>
             </div>
-            <div class="hud-stat">
+            <div class="hud-stat" id="dash-stat-relays-item">
                 <span class="hud-stat-value" id="dash-stat-relays">0</span>
                 <span class="hud-stat-label">RELAY SATELLITES</span>
             </div>
-            <div class="hud-stat">
+            <div class="hud-stat" id="dash-stat-orbital-customers-item">
                 <span class="hud-stat-value" id="dash-stat-orbital-customers">0</span>
                 <span class="hud-stat-label">CUSTOMER SATELLITES</span>
             </div>
-            <div class="hud-stat">
+            <div class="hud-stat" id="dash-stat-ground-customers-item">
                 <span class="hud-stat-value" id="dash-stat-ground-customers">0</span>
                 <span class="hud-stat-label">GROUND CUSTOMERS</span>
             </div>
-            <div class="hud-stat">
+            <div class="hud-stat" id="dash-stat-links-active-item">
                 <span class="hud-stat-value" id="dash-stat-links-active">0</span>
                 <span class="hud-stat-label">ACTIVE LINKS</span>
             </div>
@@ -232,15 +232,15 @@
 
     <!-- Top-right: revenue & power -->
     <div id="hud-right">
-        <div class="hud-stat hud-stat-large">
+        <div class="hud-stat hud-stat-large" id="dash-stat-power-item">
             <span class="hud-stat-value hud-accent" id="dash-stat-power">0 W</span>
             <span class="hud-stat-label">POWER DELIVERED</span>
         </div>
-        <div class="hud-stat hud-stat-large">
+        <div class="hud-stat hud-stat-large" id="dash-stat-revenue-item">
             <span class="hud-stat-value hud-revenue" id="dash-stat-revenue">$0</span>
             <span class="hud-stat-label">REVENUE GENERATED</span>
         </div>
-        <div class="hud-stat">
+        <div class="hud-stat" id="dash-stat-uptime-item">
             <span class="hud-stat-value" id="dash-stat-uptime">&mdash;</span>
             <span class="hud-stat-label">NETWORK UPTIME</span>
         </div>
