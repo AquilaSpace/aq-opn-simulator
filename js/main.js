@@ -1234,6 +1234,9 @@ setupDashboardBindings();
 // Load demo scene
 loadDemoScene();
 
+// Default to customer view
+switchView('dashboard');
+
 animate();
 
 console.log('Aquila Optical Power Network initialised.');
