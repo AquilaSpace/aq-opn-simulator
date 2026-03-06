@@ -1,4 +1,4 @@
-# Aquila OPN Simulator — Optical Power Network
+# Aquila Optical Power Network Simulator
 
 Interactive 3D simulation tool for designing and analysing laser/optical wireless power transmission networks across Earth and cislunar space. Part of Aquila Space Technologies' "Internet of Energy" vision.
 
@@ -9,17 +9,25 @@ Interactive 3D simulation tool for designing and analysing laser/optical wireles
 
 ## Features
 
+### Two Views
+- **Engineer View** — Full sidebar with node editor, link inspector, beam settings, network stats, and time controls. For detailed network design and analysis.
+- **Customer View** — Clean full-screen HUD overlay for demonstrations. One-click deployment of sources, relays, and customers with auto-connect. Revenue and power delivery tracking. Suitable for non-technical audiences.
+
+### Core
 - **3D Globe Scene** — Textured Earth and Moon at correct relative scale and distance, with starfield background and atmospheric glow
-- **Node System** — Place and configure power sources, relays, customers, orbital satellites, and lunar installations
-- **Power Links** — Directed laser power links with colour-coded health status (active/marginal/broken) and animated energy flow particles
-- **Link Budget Analysis** — Full aperture-to-aperture optical link budget: transmit power, beam divergence, atmospheric attenuation, receiver capture, pointing loss, and margin
-- **Beam Types** — Selectable wavelengths (1080nm Yb fibre, 1550nm eye-safe, 532nm visible, custom) with per-link overrides
-- **Orbital Mechanics** — Keplerian propagation for satellite nodes; time controller with play/pause/speed for dynamic link analysis
+- **Node System** — Place and configure ground sources, ground/orbital relays, ground/orbital customers, lunar installations, and mobile platforms
+- **Power Links** — Directed laser power links with colour-coded health status (active/marginal/broken) and animated energy flow particles. Link visuals track satellite positions smoothly every frame.
+- **Link Budget Analysis** — Full aperture-to-aperture optical link budget: transmit power, diffraction-limited beam divergence (1.22 λ/D), atmospheric scale-height attenuation, receiver capture fraction, pointing loss, and margin over required power
+- **Beam Types** — Selectable wavelengths (1080 nm Yb fibre, 1550 nm eye-safe, 532 nm visible, custom) with per-link overrides
+- **Orbital Mechanics** — Keplerian propagation with J2 perturbation for satellite nodes; smooth per-frame position updates with throttled link recomputation. Time controller with play/pause/speed up to 10000×
 - **Relay Optimiser** — Greedy heuristic auto-suggests relay placements to connect sources to customers
+- **Auto-Connect** — Dashboard mode auto-links sources→relays→customers via nearest-neighbour, with duplicate detection
+- **Revenue Model** — Tracks revenue at $250 per 15 minutes of customer access to a power source
+- **Uptime Tracking** — Per-customer power uptime percentage, averaged across the network
 - **Serialisation** — JSON export/import of full network state; PNG viewport screenshot
 - **Terrestrial Zoom** — Zoom into city/landscape level with OpenStreetMap tile overlay for ground-level node placement
 - **Camera Presets** — Quick viewpoint switching with smooth animated transitions (Earth, LEO, GEO, Cislunar, Moon, Sydney ground level)
-- **Demo Scene** — Pre-built Earth–Moon power relay network loaded on first visit
+- **Demo Scene** — Pre-built Earth–Moon power relay network delivering 10s of kW, loaded on first visit
 
 ## Running Locally
 
@@ -43,21 +51,25 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 ```
 aq-opn-simulator/
-├── index.html              # Main page — layout, UI panels, import map
-├── style.css               # All styling — dark theme, panels, controls
+├── index.html              # Single-page app — engineer + customer views
+├── style.css               # All styling — dark theme, panels, HUD overlay
+├── dashboard.html          # Standalone customer dashboard (separate page, legacy)
+├── dashboard.css           # Standalone dashboard styles
 ├── Makefile                # Dev shortcuts (make serve)
 ├── CLAUDE.md               # Claude Code project context
 ├── README.md               # This file
 ├── js/
-│   ├── main.js             # Scene setup, renderer, camera, orbit controls, render loop
+│   ├── main.js             # Scene setup, interaction, render loop, dashboard logic
+│   ├── dashboard.js        # Standalone dashboard entry point (legacy)
 │   ├── constants.js        # Physical constants, scale factors, node type definitions
 │   ├── physics.js          # Pure calculation engine — link budgets, attenuation, LOS
 │   ├── earth.js            # Earth + Moon globe rendering
 │   ├── nodeManager.js      # Node CRUD, type registry, 3D mesh creation
 │   ├── linkManager.js      # Power link management, beam line rendering
 │   ├── linkBudget.js       # Per-link budget calculations
-│   ├── orbitalMechanics.js # Keplerian propagation, coordinate conversions
+│   ├── orbitalMechanics.js # Keplerian propagation with J2, coordinate conversions
 │   ├── optimiser.js        # Greedy relay placement engine
+│   ├── uptimeTracker.js    # Per-node power uptime tracking
 │   ├── uiPanel.js          # Sidebar panel utilities
 │   ├── nodeEditor.js       # Node property editor panel
 │   ├── linkInspector.js    # Link budget display panel
@@ -65,7 +77,7 @@ aq-opn-simulator/
 │   ├── networkGraph.js     # Network topology state, metrics
 │   ├── serialisation.js    # JSON export/import, PNG export
 │   ├── sceneHelpers.js     # Lighting, starfield, coordinate axes
-│   ├── cameraPresets.js    # Named camera positions
+│   ├── cameraPresets.js    # Named camera positions with smooth transitions
 │   └── terrestrial.js      # Ground-level OpenStreetMap tile overlay
 ```
 
@@ -77,8 +89,9 @@ aq-opn-simulator/
 |---|---|
 | Ground Source | Terrestrial power generation (solar, nuclear, grid) |
 | Ground Relay | Ground-based repeater tower |
-| Ground Customer | Power consumer endpoint |
-| Orbital Relay | Satellite relay in Earth orbit |
+| Ground Customer | Ground-based power consumer endpoint |
+| Orbital Relay | Satellite relay in Earth orbit (typically GEO) |
+| Orbital Customer | Satellite or station receiving power in orbit |
 | Lunar Node | Lunar surface installation |
 | Mobile Node | Drone, aircraft, or mobile platform |
 
