@@ -26,9 +26,9 @@ import {
 } from './linkManager.js';
 import { showLinkInspector } from './linkInspector.js';
 import { computeNetworkMetrics } from './networkGraph.js';
-import { initTimeController, updateTimeController, onTimeTick } from './timeController.js';
+import { initTimeController, updateTimeController, onTimeTick, isPlaying, setPlaying, setSpeed, resetTime, getSimTime } from './timeController.js';
 import { initOrbitTrails } from './orbitalMechanics.js';
-import { getUptimeString } from './uptimeTracker.js';
+import { getUptime, getUptimeString, resetUptime } from './uptimeTracker.js';
 import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
 import { downloadJSON, importFromFile, exportScreenshot, importNetwork } from './serialisation.js';
 import { initTerrestrial, updateTerrestrial } from './terrestrial.js';
@@ -132,10 +132,9 @@ initNodeManager(scene, camera);
 const _origRemoveNode = removeNode;
 // We patch via event listener instead
 onNodeChange(() => {
-    // When a node is removed, linkManager should clean up its links.
-    // We handle this in the removeNode override below.
     updateNodeList();
     updateStats();
+    if (_currentView === 'dashboard') updateDashboardHUD();
 });
 
 // Override removeNode to also remove links
@@ -170,6 +169,7 @@ onLinkSelect((linkId) => {
 onLinkChange(() => {
     updateStats();
     updateLinkList();
+    if (_currentView === 'dashboard') updateDashboardHUD();
 });
 
 // ---------------------------------------------------------------------------
@@ -711,8 +711,10 @@ function setupUIBindings() {
 // ---------------------------------------------------------------------------
 
 function onResize() {
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
+    // In dashboard mode the viewport-container is position:fixed full-screen,
+    // but canvas.clientWidth can be stale. Use window dimensions directly.
+    const w = _currentView === 'dashboard' ? window.innerWidth : canvas.clientWidth;
+    const h = _currentView === 'dashboard' ? window.innerHeight : canvas.clientHeight;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
@@ -725,6 +727,7 @@ window.addEventListener('resize', onResize);
 // ---------------------------------------------------------------------------
 
 let _lastTime = performance.now();
+let _currentView = 'engineer';
 
 function animate() {
     requestAnimationFrame(animate);
@@ -733,23 +736,18 @@ function animate() {
     const dt = (now - _lastTime) / 1000;
     _lastTime = now;
 
-    // Camera animation
     updateCameraAnimation();
-
-    // Update billboard labels
     updateLabels();
-
-    // Update link particle animations
     updateLinkAnimations(dt);
-
-    // Update time controller (orbital propagation)
     updateTimeController(dt);
-
-    // Update Earth-Moon corridor line
     updateCorridorLine();
-
-    // Update terrestrial detail tiles
     updateTerrestrial();
+
+    // Dashboard revenue ticking (only when dashboard is active and playing)
+    if (_currentView === 'dashboard' && isPlaying()) {
+        updateDashboardRevenue();
+        updateDashboardHUD();
+    }
 
     controls.update();
     renderer.render(scene, camera);
@@ -779,7 +777,7 @@ function loadDemoScene() {
             epoch: '2025-03-05T12:00:00Z',
         },
         // Parameters sized for GEO-distance optical power beaming:
-        // large apertures (1.5–2 m), sub-μrad tracking, high Tx power.
+        // 5 m apertures, ~100 nrad tracking, MW-class Tx power → 10s of kW delivered.
         nodes: [
             {
                 id: 'node-001',
@@ -787,11 +785,11 @@ function loadDemoScene() {
                 name: 'Sydney Solar Farm',
                 position: { lat_deg: -33.86, lon_deg: 151.21, alt_km: 0 },
                 params: {
-                    transmitPower_kW: 200,
-                    apertureDiameter_m: 1.8,
-                    trackingAccuracy_mrad: 0.0005,
-                    transmitterEfficiency: 0.85,
-                    totalAvailablePower_kW: 500,
+                    transmitPower_kW: 1000,
+                    apertureDiameter_m: 5.0,
+                    trackingAccuracy_mrad: 0.0001,
+                    transmitterEfficiency: 0.90,
+                    totalAvailablePower_kW: 2000,
                     outputBeams: 4,
                 },
             },
@@ -801,11 +799,11 @@ function loadDemoScene() {
                 name: 'Mojave Power Station',
                 position: { lat_deg: 35.05, lon_deg: -117.18, alt_km: 0 },
                 params: {
-                    transmitPower_kW: 300,
-                    apertureDiameter_m: 2.0,
-                    trackingAccuracy_mrad: 0.0005,
-                    transmitterEfficiency: 0.88,
-                    totalAvailablePower_kW: 750,
+                    transmitPower_kW: 1200,
+                    apertureDiameter_m: 5.0,
+                    trackingAccuracy_mrad: 0.0001,
+                    transmitterEfficiency: 0.90,
+                    totalAvailablePower_kW: 3000,
                     outputBeams: 6,
                 },
             },
@@ -815,9 +813,9 @@ function loadDemoScene() {
                 name: 'Pilbara Mine Site',
                 position: { lat_deg: -22.3, lon_deg: 118.8, alt_km: 0 },
                 params: {
-                    requiredPower_kW: 0.005,
-                    apertureDiameter_m: 2.0,
-                    trackingAccuracy_mrad: 0.0005,
+                    requiredPower_kW: 10,
+                    apertureDiameter_m: 5.0,
+                    trackingAccuracy_mrad: 0.0001,
                 },
             },
             {
@@ -826,12 +824,12 @@ function loadDemoScene() {
                 name: 'Indian Ocean GEO Relay',
                 position: { lat_deg: 0, lon_deg: 105, alt_km: 35786 },
                 params: {
-                    transmitPower_kW: 100,
-                    apertureDiameter_m: 1.8,
-                    trackingAccuracy_mrad: 0.0003,
-                    transmitterEfficiency: 0.82,
-                    receiveAperture_m: 2.0,
-                    retransmitEfficiency: 0.72,
+                    transmitPower_kW: 500,
+                    apertureDiameter_m: 5.0,
+                    trackingAccuracy_mrad: 0.0001,
+                    transmitterEfficiency: 0.90,
+                    receiveAperture_m: 5.0,
+                    retransmitEfficiency: 0.80,
                     maxSimultaneousLinks: 6,
                     orbitalElements: {
                         semiMajorAxis_km: 42164,
@@ -849,12 +847,12 @@ function loadDemoScene() {
                 name: 'Pacific GEO Relay',
                 position: { lat_deg: 0, lon_deg: -170, alt_km: 35786 },
                 params: {
-                    transmitPower_kW: 100,
-                    apertureDiameter_m: 1.8,
-                    trackingAccuracy_mrad: 0.0003,
-                    transmitterEfficiency: 0.80,
-                    receiveAperture_m: 2.0,
-                    retransmitEfficiency: 0.70,
+                    transmitPower_kW: 500,
+                    apertureDiameter_m: 5.0,
+                    trackingAccuracy_mrad: 0.0001,
+                    transmitterEfficiency: 0.90,
+                    receiveAperture_m: 5.0,
+                    retransmitEfficiency: 0.80,
                     maxSimultaneousLinks: 6,
                     orbitalElements: {
                         semiMajorAxis_km: 42164,
@@ -872,9 +870,9 @@ function loadDemoScene() {
                 name: 'Tokyo Receiver',
                 position: { lat_deg: 35.68, lon_deg: 139.69, alt_km: 0 },
                 params: {
-                    requiredPower_kW: 0.005,
-                    apertureDiameter_m: 2.0,
-                    trackingAccuracy_mrad: 0.0005,
+                    requiredPower_kW: 10,
+                    apertureDiameter_m: 5.0,
+                    trackingAccuracy_mrad: 0.0001,
                 },
             },
             {
@@ -883,9 +881,9 @@ function loadDemoScene() {
                 name: 'LEO Science Platform',
                 position: { lat_deg: 0, lon_deg: 120, alt_km: 400 },
                 params: {
-                    requiredPower_kW: 0.001,
-                    apertureDiameter_m: 1.0,
-                    trackingAccuracy_mrad: 0.0003,
+                    requiredPower_kW: 5,
+                    apertureDiameter_m: 3.0,
+                    trackingAccuracy_mrad: 0.0001,
                     orbitalElements: {
                         semiMajorAxis_km: 6771,
                         eccentricity: 0,
@@ -904,11 +902,11 @@ function loadDemoScene() {
                 // Moon initial position is at (0, 0, 384.4) scene units
                 position: { x: 0, y: -1.737, z: 384.4 },
                 params: {
-                    transmitPower_kW: 5,
-                    apertureDiameter_m: 1.0,
-                    trackingAccuracy_mrad: 0.001,
-                    transmitterEfficiency: 0.80,
-                    requiredPower_kW: 0.001,
+                    transmitPower_kW: 50,
+                    apertureDiameter_m: 3.0,
+                    trackingAccuracy_mrad: 0.0001,
+                    transmitterEfficiency: 0.85,
+                    requiredPower_kW: 5,
                 },
             },
         ],
@@ -930,6 +928,308 @@ function loadDemoScene() {
     updateLinkList();
     updateStats();
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard view — shared state, auto-connect, revenue model
+// ---------------------------------------------------------------------------
+
+const REVENUE_PER_15MIN = 250;
+let _totalRevenue = 0;
+let _lastRevenueTick = 0;
+const REVENUE_INTERVAL_S = 900;
+
+/** Switch between engineer and dashboard views */
+function switchView(view) {
+    _currentView = view;
+    document.body.classList.toggle('dashboard-view', view === 'dashboard');
+    const hud = document.getElementById('dashboard-hud');
+    if (hud) hud.style.display = view === 'dashboard' ? '' : 'none';
+
+    // Update the header toggle button text
+    const switchBtn = document.getElementById('btn-switch-view');
+    if (switchBtn) switchBtn.textContent = view === 'dashboard' ? 'Engineer View' : 'Customer View';
+
+    if (view === 'dashboard') {
+        updateDashboardHUD();
+    }
+
+    // Trigger resize so canvas fills the new layout
+    requestAnimationFrame(() => onResize());
+}
+
+/** Random lat/lon biased toward mid-latitudes */
+function _randomLatLon() {
+    const lat = (Math.random() - 0.5) * 120;
+    const lon = (Math.random() - 0.5) * 360;
+    return { lat_deg: lat, lon_deg: lon };
+}
+
+/** Random GEO longitude */
+function _randomGeoLon() {
+    return (Math.random() - 0.5) * 360;
+}
+
+/** Find nearest node of a given type to a position */
+function _findNearest(pos, filterFn) {
+    const candidates = getAllNodes().filter(filterFn);
+    if (candidates.length === 0) return null;
+    let best = null;
+    let bestDist = Infinity;
+    for (const c of candidates) {
+        const dx = c.scenePos.x - pos.x;
+        const dy = c.scenePos.y - pos.y;
+        const dz = c.scenePos.z - pos.z;
+        const dist = dx * dx + dy * dy + dz * dz;
+        if (dist < bestDist) { bestDist = dist; best = c; }
+    }
+    return best;
+}
+
+/** Auto-connect all unconnected nodes — sources→relays, relays→customers */
+function dashboardAutoConnect() {
+    const nodes = getAllNodes();
+    const links = getAllLinks();
+    const existingPairs = new Set(links.map(l => l.fromId + '→' + l.toId));
+
+    const sources = nodes.filter(n => n.type === 'GROUND_SOURCE');
+    const relays = nodes.filter(n => n.type === 'ORBITAL_RELAY');
+    const customers = nodes.filter(n =>
+        n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
+    );
+
+    // Connect every source to nearest relay (if not already connected)
+    for (const source of sources) {
+        const relay = _findNearest(source.scenePos, n => n.type === 'ORBITAL_RELAY');
+        if (relay && !existingPairs.has(source.id + '→' + relay.id)) {
+            createLink(source.id, relay.id);
+            existingPairs.add(source.id + '→' + relay.id);
+        }
+    }
+
+    // Connect every customer to nearest relay (if no incoming link exists)
+    for (const customer of customers) {
+        const hasIncoming = getAllLinks().some(l => l.toId === customer.id);
+        if (hasIncoming) continue;
+
+        const relay = _findNearest(customer.scenePos, n => n.type === 'ORBITAL_RELAY');
+        if (relay) {
+            // Ensure this relay has an incoming source link
+            const relayHasIncoming = getAllLinks().some(l => l.toId === relay.id);
+            if (!relayHasIncoming) {
+                const source = _findNearest(relay.scenePos, n => n.type === 'GROUND_SOURCE');
+                if (source && !existingPairs.has(source.id + '→' + relay.id)) {
+                    createLink(source.id, relay.id);
+                    existingPairs.add(source.id + '→' + relay.id);
+                }
+            }
+            if (!existingPairs.has(relay.id + '→' + customer.id)) {
+                createLink(relay.id, customer.id);
+                existingPairs.add(relay.id + '→' + customer.id);
+            }
+        } else {
+            // No relay — try direct from nearest source
+            const source = _findNearest(customer.scenePos, n => n.type === 'GROUND_SOURCE');
+            if (source && !existingPairs.has(source.id + '→' + customer.id)) {
+                createLink(source.id, customer.id);
+                existingPairs.add(source.id + '→' + customer.id);
+            }
+        }
+    }
+
+    recomputeAllLinks();
+}
+
+function dashAddSource() {
+    const { lat_deg, lon_deg } = _randomLatLon();
+    const count = getAllNodes().filter(n => n.type === 'GROUND_SOURCE').length + 1;
+    createNode({ type: 'GROUND_SOURCE', name: 'Power Station ' + count, position: { lat_deg, lon_deg, alt_km: 0 } });
+    dashboardAutoConnect();
+    updateDashboardHUD();
+}
+
+function dashAddRelay() {
+    const lon = _randomGeoLon();
+    const trueAnomaly = ((lon % 360) + 360) % 360;
+    const count = getAllNodes().filter(n => n.type === 'ORBITAL_RELAY').length + 1;
+    createNode({
+        type: 'ORBITAL_RELAY',
+        name: 'Relay SAT-' + count,
+        position: { lat_deg: 0, lon_deg: lon, alt_km: 35786 },
+        params: {
+            orbitalElements: {
+                semiMajorAxis_km: 42164, eccentricity: 0, inclination_deg: 0,
+                raan_deg: 0, argOfPerigee_deg: 0, trueAnomaly_deg: trueAnomaly,
+            },
+        },
+    });
+    dashboardAutoConnect();
+    updateDashboardHUD();
+}
+
+function dashAddGroundCustomer() {
+    const { lat_deg, lon_deg } = _randomLatLon();
+    const count = getAllNodes().filter(n =>
+        n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
+    ).length + 1;
+    createNode({ type: 'GROUND_CUSTOMER', name: 'Ground Customer ' + count, position: { lat_deg, lon_deg, alt_km: 0 } });
+    dashboardAutoConnect();
+    updateDashboardHUD();
+}
+
+function dashAddOrbitalCustomer() {
+    const lon = _randomGeoLon();
+    const count = getAllNodes().filter(n =>
+        n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
+    ).length + 1;
+    createNode({
+        type: 'ORBITAL_CUSTOMER',
+        name: 'Satellite Customer ' + count,
+        position: { lat_deg: 0, lon_deg: lon, alt_km: 400 },
+        params: {
+            orbitalElements: {
+                semiMajorAxis_km: 6771, eccentricity: 0, inclination_deg: 51.6,
+                raan_deg: Math.random() * 360, argOfPerigee_deg: 0,
+                trueAnomaly_deg: ((lon % 360) + 360) % 360,
+            },
+        },
+    });
+    dashboardAutoConnect();
+    updateDashboardHUD();
+}
+
+function _formatRevenue(amount) {
+    if (amount >= 1e6) return (amount / 1e6).toFixed(2) + 'M';
+    if (amount >= 1e3) return (amount / 1e3).toFixed(1) + 'K';
+    return amount.toFixed(0);
+}
+
+function updateDashboardRevenue() {
+    const links = getAllLinks();
+    const poweredCustomers = new Set();
+    for (const link of links) {
+        if (link.status === 'ACTIVE' || link.status === 'MARGINAL') {
+            const toNode = getNode(link.toId);
+            if (toNode && (toNode.type === 'GROUND_CUSTOMER' || toNode.type === 'ORBITAL_CUSTOMER' || toNode.type === 'LUNAR_NODE')) {
+                poweredCustomers.add(link.toId);
+            }
+        }
+    }
+    const simTime = getSimTime();
+    const elapsed = simTime - _lastRevenueTick;
+    if (elapsed >= REVENUE_INTERVAL_S) {
+        const intervals = Math.floor(elapsed / REVENUE_INTERVAL_S);
+        _totalRevenue += poweredCustomers.size * REVENUE_PER_15MIN * intervals;
+        _lastRevenueTick += intervals * REVENUE_INTERVAL_S;
+    }
+}
+
+function updateDashboardHUD() {
+    const nodes = getAllNodes();
+    const links = getAllLinks();
+
+    const el = (id) => document.getElementById(id);
+
+    const sources = nodes.filter(n => n.type === 'GROUND_SOURCE').length;
+    const relays = nodes.filter(n => n.type === 'ORBITAL_RELAY').length;
+    const orbCustomers = nodes.filter(n => n.type === 'ORBITAL_CUSTOMER').length;
+    const gndCustomers = nodes.filter(n =>
+        n.type === 'GROUND_CUSTOMER' || n.type === 'LUNAR_NODE'
+    ).length;
+    const activeLinks = links.filter(l => l.status === 'ACTIVE' || l.status === 'MARGINAL').length;
+
+    if (el('dash-stat-sources')) el('dash-stat-sources').textContent = sources;
+    if (el('dash-stat-relays')) el('dash-stat-relays').textContent = relays;
+    if (el('dash-stat-orbital-customers')) el('dash-stat-orbital-customers').textContent = orbCustomers;
+    if (el('dash-stat-ground-customers')) el('dash-stat-ground-customers').textContent = gndCustomers;
+    if (el('dash-stat-links-active')) el('dash-stat-links-active').textContent = activeLinks;
+
+    // Total delivered power
+    let totalPower_W = 0;
+    for (const link of links) {
+        if (link.budget && (link.status === 'ACTIVE' || link.status === 'MARGINAL')) {
+            totalPower_W += link.budget.rxPower_W || 0;
+        }
+    }
+    const powerStr = totalPower_W >= 1000
+        ? (totalPower_W / 1000).toFixed(1) + ' kW'
+        : totalPower_W.toFixed(1) + ' W';
+    if (el('dash-stat-power')) el('dash-stat-power').textContent = powerStr;
+
+    // Revenue
+    if (el('dash-stat-revenue')) el('dash-stat-revenue').textContent = '$' + _formatRevenue(_totalRevenue);
+
+    // Uptime
+    const customerNodes = nodes.filter(n =>
+        n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
+    );
+    let avgUptime = null;
+    if (customerNodes.length > 0) {
+        let sum = 0, count = 0;
+        for (const c of customerNodes) {
+            const u = getUptime(c.id);
+            if (u !== null) { sum += u; count++; }
+        }
+        if (count > 0) avgUptime = sum / count;
+    }
+    if (el('dash-stat-uptime')) {
+        el('dash-stat-uptime').textContent = avgUptime !== null ? avgUptime.toFixed(1) + '%' : '\u2014';
+    }
+
+    // Sync epoch display
+    const mainEpoch = document.getElementById('epoch-display');
+    const dashEpoch = document.getElementById('dash-epoch-display');
+    if (mainEpoch && dashEpoch) dashEpoch.textContent = mainEpoch.textContent;
+}
+
+/** Setup dashboard button bindings */
+function setupDashboardBindings() {
+    // Header view toggle button
+    const switchBtn = document.getElementById('btn-switch-view');
+    if (switchBtn) {
+        switchBtn.addEventListener('click', () => {
+            switchView(_currentView === 'engineer' ? 'dashboard' : 'engineer');
+        });
+    }
+
+    // Dashboard action buttons
+    const bind = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', fn);
+    };
+
+    bind('dash-btn-add-source', dashAddSource);
+    bind('dash-btn-add-relay', dashAddRelay);
+    bind('dash-btn-add-ground-customer', dashAddGroundCustomer);
+    bind('dash-btn-add-orbital-customer', dashAddOrbitalCustomer);
+    bind('dash-btn-auto-connect', () => { dashboardAutoConnect(); updateDashboardHUD(); });
+
+    bind('dash-btn-play', () => {
+        setPlaying(!isPlaying());
+        const btn = document.getElementById('dash-btn-play');
+        if (btn) btn.textContent = isPlaying() ? '⏸ Pause' : '▶ Play';
+    });
+
+    bind('dash-btn-reset', () => {
+        resetTime();
+        _totalRevenue = 0;
+        _lastRevenueTick = 0;
+        resetUptime();
+        updateDashboardHUD();
+    });
+
+    bind('dash-btn-engineer', () => switchView('engineer'));
+
+    document.querySelectorAll('.dash-speed-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setSpeed(parseInt(btn.dataset.dashSpeed));
+            document.querySelectorAll('.dash-speed-btn').forEach(b =>
+                b.classList.toggle('active', b === btn)
+            );
+        });
+    });
+}
+
+setupDashboardBindings();
 
 // Load demo scene
 loadDemoScene();

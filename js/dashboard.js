@@ -192,12 +192,33 @@ function addRelay() {
     updateHUD();
 }
 
-function addCustomer() {
+function addGroundCustomer() {
     const { lat_deg, lon_deg } = _randomLatLon();
     createNode({
         type: 'GROUND_CUSTOMER',
-        name: 'Customer ' + (getAllNodes().filter(n => n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER').length + 1),
+        name: 'Ground Customer ' + (getAllNodes().filter(n => n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER').length + 1),
         position: { lat_deg, lon_deg, alt_km: 0 },
+    });
+    _autoConnect();
+    updateHUD();
+}
+
+function addOrbitalCustomer() {
+    const lon = _randomGeoLon();
+    createNode({
+        type: 'ORBITAL_CUSTOMER',
+        name: 'Satellite Customer ' + (getAllNodes().filter(n => n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER').length + 1),
+        position: { lat_deg: 0, lon_deg: lon, alt_km: 400 },
+        params: {
+            orbitalElements: {
+                semiMajorAxis_km: 6771,
+                eccentricity: 0,
+                inclination_deg: 51.6,
+                raan_deg: Math.random() * 360,
+                argOfPerigee_deg: 0,
+                trueAnomaly_deg: ((lon % 360) + 360) % 360,
+            },
+        },
     });
     _autoConnect();
     updateHUD();
@@ -207,45 +228,47 @@ function addCustomer() {
 function _autoConnect() {
     const nodes = getAllNodes();
     const links = getAllLinks();
-
-    // Set of customer IDs that already have an incoming active/marginal link
-    const connectedCustomers = new Set();
-    for (const link of links) {
-        connectedCustomers.add(link.toId);
-    }
+    const existingPairs = new Set(links.map(l => l.fromId + '→' + l.toId));
 
     const sources = nodes.filter(n => n.type === 'GROUND_SOURCE');
-    const relays = nodes.filter(n => n.type === 'ORBITAL_RELAY');
     const customers = nodes.filter(n =>
         n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
     );
 
-    // For each source without an outgoing link to a relay, connect to nearest relay
+    // Connect every source to nearest relay
     for (const source of sources) {
-        const hasOutgoing = links.some(l => l.fromId === source.id);
-        if (hasOutgoing) continue;
         const relay = _findBestRelay(source.scenePos);
-        if (relay) {
+        if (relay && !existingPairs.has(source.id + '→' + relay.id)) {
             createLink(source.id, relay.id);
+            existingPairs.add(source.id + '→' + relay.id);
         }
     }
 
-    // For each unconnected customer, connect from nearest relay
+    // Connect every customer to nearest relay
     for (const customer of customers) {
-        if (connectedCustomers.has(customer.id)) continue;
+        const hasIncoming = getAllLinks().some(l => l.toId === customer.id);
+        if (hasIncoming) continue;
+
         const relay = _findBestRelay(customer.scenePos);
         if (relay) {
-            // Ensure source→relay link exists
             const relayHasIncoming = getAllLinks().some(l => l.toId === relay.id);
             if (!relayHasIncoming) {
                 const source = _findBestSource(relay.scenePos);
-                if (source) createLink(source.id, relay.id);
+                if (source && !existingPairs.has(source.id + '→' + relay.id)) {
+                    createLink(source.id, relay.id);
+                    existingPairs.add(source.id + '→' + relay.id);
+                }
             }
-            createLink(relay.id, customer.id);
+            if (!existingPairs.has(relay.id + '→' + customer.id)) {
+                createLink(relay.id, customer.id);
+                existingPairs.add(relay.id + '→' + customer.id);
+            }
         } else {
-            // No relay — try direct from source
             const source = _findBestSource(customer.scenePos);
-            if (source) createLink(source.id, customer.id);
+            if (source && !existingPairs.has(source.id + '→' + customer.id)) {
+                createLink(source.id, customer.id);
+                existingPairs.add(source.id + '→' + customer.id);
+            }
         }
     }
 
@@ -262,14 +285,16 @@ function updateHUD() {
 
     const sources = nodes.filter(n => n.type === 'GROUND_SOURCE').length;
     const relays = nodes.filter(n => n.type === 'ORBITAL_RELAY').length;
-    const customers = nodes.filter(n =>
-        n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
-    ).length;
+    const orbCustomers = nodes.filter(n => n.type === 'ORBITAL_CUSTOMER').length;
+    const gndCustomers = nodes.filter(n => n.type === 'GROUND_CUSTOMER' || n.type === 'LUNAR_NODE').length;
     const activeLinks = links.filter(l => l.status === 'ACTIVE' || l.status === 'MARGINAL').length;
 
     document.getElementById('stat-sources').textContent = sources;
     document.getElementById('stat-relays').textContent = relays;
-    document.getElementById('stat-customers').textContent = customers;
+    const orbEl = document.getElementById('stat-orbital-customers');
+    const gndEl = document.getElementById('stat-ground-customers');
+    if (orbEl) orbEl.textContent = orbCustomers;
+    if (gndEl) gndEl.textContent = gndCustomers;
     document.getElementById('stat-links-active').textContent = activeLinks;
 
     // Total delivered power
@@ -340,7 +365,9 @@ function updateRevenue(simTime) {
 
 document.getElementById('btn-add-source').addEventListener('click', addSource);
 document.getElementById('btn-add-relay').addEventListener('click', addRelay);
-document.getElementById('btn-add-customer').addEventListener('click', addCustomer);
+document.getElementById('btn-add-customer')?.addEventListener('click', addGroundCustomer);
+document.getElementById('btn-add-ground-customer')?.addEventListener('click', addGroundCustomer);
+document.getElementById('btn-add-orbital-customer')?.addEventListener('click', addOrbitalCustomer);
 document.getElementById('btn-auto-connect').addEventListener('click', () => {
     _autoConnect();
     updateHUD();

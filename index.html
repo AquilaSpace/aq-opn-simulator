@@ -21,7 +21,7 @@
     <img src="brandmark-black-2000px.svg" class="logo" alt="Aquila">
     <span class="title">Aquila Optical Power Network Simulator</span>
     <div class="spacer"></div>
-    <a href="dashboard.html" style="text-decoration:none;"><button title="Switch to simplified dashboard view">Dashboard</button></a>
+    <button id="btn-switch-view" class="view-switch-btn">Customer View</button>
     <button id="btn-import" title="Import network from JSON">Import</button>
     <button id="btn-export" title="Export network as JSON">Export</button>
     <button id="btn-screenshot" title="Save viewport screenshot">Screenshot</button>
@@ -197,6 +197,101 @@
 
 </div>
 
+<!-- ========== Dashboard HUD (hidden by default, shown when dashboard tab active) ========== -->
+<div id="dashboard-hud" style="display: none;">
+
+    <!-- Top-left: network stats -->
+    <div id="hud-left">
+        <div class="hud-logo-row">
+            <img src="brandmark-black-2000px.svg" class="hud-logo" alt="Aquila">
+            <span class="hud-title">Aquila Optical Power Network</span>
+        </div>
+        <div class="hud-stats">
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="dash-stat-sources">0</span>
+                <span class="hud-stat-label">POWER SOURCES</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="dash-stat-relays">0</span>
+                <span class="hud-stat-label">RELAY SATELLITES</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="dash-stat-orbital-customers">0</span>
+                <span class="hud-stat-label">CUSTOMER SATELLITES</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="dash-stat-ground-customers">0</span>
+                <span class="hud-stat-label">GROUND CUSTOMERS</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="dash-stat-links-active">0</span>
+                <span class="hud-stat-label">ACTIVE LINKS</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top-right: revenue & power -->
+    <div id="hud-right">
+        <div class="hud-stat hud-stat-large">
+            <span class="hud-stat-value hud-accent" id="dash-stat-power">0 W</span>
+            <span class="hud-stat-label">POWER DELIVERED</span>
+        </div>
+        <div class="hud-stat hud-stat-large">
+            <span class="hud-stat-value hud-revenue" id="dash-stat-revenue">$0</span>
+            <span class="hud-stat-label">REVENUE GENERATED</span>
+        </div>
+        <div class="hud-stat">
+            <span class="hud-stat-value" id="dash-stat-uptime">&mdash;</span>
+            <span class="hud-stat-label">NETWORK UPTIME</span>
+        </div>
+    </div>
+
+    <!-- Bottom-centre: action buttons -->
+    <div id="hud-actions">
+        <button class="hud-btn" id="dash-btn-add-source" title="Deploy a new ground power source">
+            <span class="hud-btn-icon">&#9889;</span>
+            <span>Add Source</span>
+        </button>
+        <button class="hud-btn" id="dash-btn-add-relay" title="Deploy a relay satellite to GEO">
+            <span class="hud-btn-icon">&#128752;</span>
+            <span>Add Relay</span>
+        </button>
+        <button class="hud-btn" id="dash-btn-add-ground-customer" title="Add a ground-based power customer">
+            <span class="hud-btn-icon">&#127981;</span>
+            <span>Ground Customer</span>
+        </button>
+        <button class="hud-btn" id="dash-btn-add-orbital-customer" title="Add a satellite receiving power">
+            <span class="hud-btn-icon">&#128225;</span>
+            <span>Satellite Customer</span>
+        </button>
+        <button class="hud-btn hud-btn-accent" id="dash-btn-auto-connect" title="Auto-optimise all connections">
+            <span class="hud-btn-icon">&#128279;</span>
+            <span>Auto-Connect</span>
+        </button>
+        <div class="hud-sep"></div>
+        <button class="hud-btn hud-btn-dim" id="dash-btn-play" title="Play / Pause simulation">&#9654; Play</button>
+        <button class="hud-btn hud-btn-dim" id="dash-btn-reset" title="Reset simulation time">Reset</button>
+        <div class="hud-sep"></div>
+        <button class="hud-btn hud-btn-dim" id="dash-btn-engineer" title="Switch to engineering view">Engineer View</button>
+    </div>
+
+    <!-- Bottom-left: epoch -->
+    <div id="hud-epoch">
+        <span id="dash-epoch-display">2025-03-05 12:00:00 UTC</span>
+    </div>
+
+    <!-- Bottom-right: speed controls -->
+    <div id="hud-speed">
+        <button class="dash-speed-btn active" data-dash-speed="1">1&times;</button>
+        <button class="dash-speed-btn" data-dash-speed="10">10&times;</button>
+        <button class="dash-speed-btn" data-dash-speed="100">100&times;</button>
+        <button class="dash-speed-btn" data-dash-speed="1000">1000&times;</button>
+        <button class="dash-speed-btn" data-dash-speed="5000">5000&times;</button>
+        <button class="dash-speed-btn" data-dash-speed="10000">10000&times;</button>
+    </div>
+
+</div>
+
 <!-- ========== Time bar ========== -->
 <div id="timebar">
     <div class="time-controls">
@@ -210,6 +305,8 @@
         <button data-speed="10">10×</button>
         <button data-speed="100">100×</button>
         <button data-speed="1000">1000×</button>
+        <button data-speed="5000">5000×</button>
+        <button data-speed="10000">10000×</button>
     </div>
     <div class="epoch-display" id="epoch-display">2025-03-05 12:00:00 UTC</div>
 </div>

@@ -38,8 +38,12 @@
                 <span class="hud-stat-label">RELAY SATELLITES</span>
             </div>
             <div class="hud-stat">
-                <span class="hud-stat-value" id="stat-customers">0</span>
-                <span class="hud-stat-label">CUSTOMERS</span>
+                <span class="hud-stat-value" id="stat-orbital-customers">0</span>
+                <span class="hud-stat-label">CUSTOMER SATELLITES</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="stat-ground-customers">0</span>
+                <span class="hud-stat-label">GROUND CUSTOMERS</span>
             </div>
             <div class="hud-stat">
                 <span class="hud-stat-value" id="stat-links-active">0</span>
@@ -74,9 +78,13 @@
             <span class="hud-btn-icon">🛰</span>
             <span>Add Relay</span>
         </button>
-        <button class="hud-btn" id="btn-add-customer" title="Add a customer receiver">
-            <span class="hud-btn-icon">📡</span>
-            <span>Add Customer</span>
+        <button class="hud-btn" id="btn-add-ground-customer" title="Add a ground-based power customer">
+            <span class="hud-btn-icon">&#127981;</span>
+            <span>Ground Customer</span>
+        </button>
+        <button class="hud-btn" id="btn-add-orbital-customer" title="Add a satellite receiving power">
+            <span class="hud-btn-icon">&#128225;</span>
+            <span>Satellite Customer</span>
         </button>
         <button class="hud-btn hud-btn-accent" id="btn-auto-connect" title="Auto-optimise all connections">
             <span class="hud-btn-icon">🔗</span>

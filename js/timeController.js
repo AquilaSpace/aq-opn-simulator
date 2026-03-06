@@ -95,13 +95,16 @@ export function updateTimeController(dt) {
 
     _simTime += dt * _speedMultiplier;
 
-    // Update UI at 10 Hz
+    // Propagate orbital positions every frame for smooth movement
+    _propagatePositions();
+
+    // Throttle expensive operations (link recompute, UI, uptime) at 10 Hz
     const now = performance.now();
     if (now - _lastPhysicsUpdate >= PHYSICS_INTERVAL_MS) {
         _lastPhysicsUpdate = now;
         _updateEpochDisplay();
         _updateSlider();
-        _propagateAll();
+        _recomputeAndSample();
         _listeners.tick.forEach(fn => fn(_simTime));
     }
 }
@@ -110,36 +113,49 @@ export function updateTimeController(dt) {
 // Propagation
 // ---------------------------------------------------------------------------
 
-function _propagateAll() {
-    // Propagate orbital nodes
+/** Fast per-frame position update — just moves meshes, no link recompute */
+function _propagatePositions() {
     const nodes = getAllNodes();
-    let changed = false;
 
     for (const node of nodes) {
         if ((node.type === 'ORBITAL_RELAY' || node.type === 'ORBITAL_CUSTOMER') && node.params.orbitalElements) {
             const pos = propagateOrbit(node.params.orbitalElements, _simTime);
             setNodeScenePosition(node.id, pos.x, pos.y, pos.z);
-            updateOrbitTrail(node.id, node.params.orbitalElements, _simTime, 0x4488ff);
-            changed = true;
         }
     }
 
-    // Propagate Moon position (simplified circular orbit)
+    // Moon position (simplified circular orbit)
     if (_moonMesh) {
         const moonAngle = (2 * Math.PI * _simTime) / MOON_ORBITAL_PERIOD_S;
         _moonMesh.position.x = MOON_DISTANCE * Math.sin(moonAngle);
         _moonMesh.position.z = MOON_DISTANCE * Math.cos(moonAngle);
-        // Slight inclination
         _moonMesh.position.y = MOON_DISTANCE * 0.089 * Math.sin(moonAngle); // ~5.14° incl
     }
+}
 
-    // Recompute links if any orbital nodes changed
-    if (changed) {
+/** Throttled: recompute links, update orbit trails, sample uptime */
+function _recomputeAndSample() {
+    const nodes = getAllNodes();
+    let hasOrbital = false;
+
+    for (const node of nodes) {
+        if ((node.type === 'ORBITAL_RELAY' || node.type === 'ORBITAL_CUSTOMER') && node.params.orbitalElements) {
+            updateOrbitTrail(node.id, node.params.orbitalElements, _simTime, 0x4488ff);
+            hasOrbital = true;
+        }
+    }
+
+    if (hasOrbital) {
         recomputeAllLinks();
     }
 
-    // Sample uptime for receiver nodes
     sampleUptime();
+}
+
+/** Full propagation — used for step/reset (not the per-frame path) */
+function _propagateAll() {
+    _propagatePositions();
+    _recomputeAndSample();
 }
 
 // ---------------------------------------------------------------------------

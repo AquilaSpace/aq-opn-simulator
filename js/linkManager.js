@@ -422,16 +422,17 @@ function _getBeamColour(link) {
 // ---------------------------------------------------------------------------
 
 /**
- * Update particle animation along beam lines.
+ * Update link visuals every frame: move line endpoints to track node positions
+ * and animate particles along beam lines.
  * @param {number} dt — delta time in seconds
  */
 export function updateLinkAnimations(dt) {
     _animTime += dt;
 
+    const _up = new THREE.Vector3(0, 1, 0);
+
     for (const link of _links.values()) {
         if (!link.mesh) continue;
-        // Only animate particles for visible (active/marginal) links
-        if (link.status === 'INACTIVE' || link.status === 'BROKEN') continue;
 
         const fromNode = getNode(link.fromId);
         const toNode = getNode(link.toId);
@@ -439,17 +440,36 @@ export function updateLinkAnimations(dt) {
 
         const from = new THREE.Vector3(fromNode.scenePos.x, fromNode.scenePos.y, fromNode.scenePos.z);
         const to = new THREE.Vector3(toNode.scenePos.x, toNode.scenePos.y, toNode.scenePos.z);
+        const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
+        const dir = new THREE.Vector3().subVectors(to, from).normalize();
+        const showBeam = link.status === 'ACTIVE' || link.status === 'MARGINAL';
 
         link.mesh.traverse(child => {
-            if (child.isPoints && child.name === 'particles') {
+            // Update line endpoints every frame
+            if (child.isLine && (child.name === 'beamLine' || child.name === 'glowLine')) {
+                child.geometry.setFromPoints([from, to]);
+            }
+            // Update arrow position
+            if (child.name === 'arrow') {
+                child.position.copy(mid);
+                child.quaternion.setFromUnitVectors(_up, dir);
+            }
+            // Update hit target position
+            if (child.isMesh && child.name === 'hitTarget') {
+                child.position.copy(mid);
+                child.quaternion.setFromUnitVectors(_up, dir);
+            }
+            // Animate particles along beam
+            if (child.isPoints && child.name === 'particles' && showBeam) {
                 const posAttr = child.geometry.getAttribute('position');
                 const count = posAttr.count;
 
                 for (let i = 0; i < count; i++) {
-                    // Each particle has a different phase offset
                     const t = ((_animTime * 0.5 + i / count) % 1);
-                    const pos = new THREE.Vector3().lerpVectors(from, to, t);
-                    posAttr.setXYZ(i, pos.x, pos.y, pos.z);
+                    const px = from.x + (to.x - from.x) * t;
+                    const py = from.y + (to.y - from.y) * t;
+                    const pz = from.z + (to.z - from.z) * t;
+                    posAttr.setXYZ(i, px, py, pz);
                 }
                 posAttr.needsUpdate = true;
             }
