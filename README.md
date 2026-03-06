@@ -1,4 +1,4 @@
-# Aquila Optical Power Network Simulator
+# Aquila Optical Power Network
 
 Interactive 3D simulation tool for designing and analysing laser/optical wireless power transmission networks across Earth and cislunar space. Part of Aquila Space Technologies' "Internet of Energy" vision.
 

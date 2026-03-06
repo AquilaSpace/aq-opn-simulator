@@ -1236,4 +1236,4 @@ loadDemoScene();
 
 animate();
 
-console.log('Aquila Optical Power Network Simulator initialised.');
+console.log('Aquila Optical Power Network initialised.');

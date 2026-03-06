@@ -1,7 +1,7 @@
 # CLAUDE.md — aq-opn-simulator
 
 ## Project
-Aquila Optical Power Network Simulator. Interactive 3D tool for designing and analysing laser power relay networks across Earth and cislunar space.
+Aquila Optical Power Network. Interactive 3D tool for designing and analysing laser power relay networks across Earth and cislunar space.
 
 ## Stack
 Vanilla JS + Three.js r160 (ES modules via import map from cdn.jsdelivr.net). No build step. Static site.
