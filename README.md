@@ -17,7 +17,8 @@ Interactive 3D simulation tool for designing and analysing laser/optical wireles
 - **3D Globe Scene** — Textured Earth and Moon at correct relative scale and distance, with starfield background and atmospheric glow
 - **Node System** — Place and configure ground sources, ground/orbital relays, ground/orbital customers, lunar installations, and mobile platforms
 - **Power Links** — Directed laser power links with colour-coded health status (active/marginal/broken) and animated energy flow particles. Link visuals track satellite positions smoothly every frame.
-- **Link Budget Analysis** — Full aperture-to-aperture optical link budget: transmit power, diffraction-limited beam divergence (1.22 λ/D), atmospheric scale-height attenuation, receiver capture fraction, pointing loss, and margin over required power
+- **Link Budget Analysis** — Full Gaussian beam optical link budget: transmit power, diffraction-limited divergence (θ = λ/πw₀), Gaussian capture fraction (1 − exp(−2r²/w²)), exponential scale-height atmospheric attenuation, pointing loss, and margin over required power
+- **Hover Tooltips** — Every technical metric, parameter, and statistic has a hover tooltip explaining what it is, how it is calculated, and what affects it
 - **Beam Types** — Selectable wavelengths (1080 nm Yb fibre, 1550 nm eye-safe, 532 nm visible, custom) with per-link overrides
 - **Orbital Mechanics** — Keplerian propagation with J2 perturbation for satellite nodes; smooth per-frame position updates with throttled link recomputation. Time controller with play/pause/speed up to 10000×
 - **Relay Optimiser** — Greedy heuristic auto-suggests relay placements to connect sources to customers
@@ -78,7 +79,8 @@ aq-opn-simulator/
 │   ├── serialisation.js    # JSON export/import, PNG export
 │   ├── sceneHelpers.js     # Lighting, starfield, coordinate axes
 │   ├── cameraPresets.js    # Named camera positions with smooth transitions
-│   └── terrestrial.js      # Ground-level OpenStreetMap tile overlay
+│   ├── terrestrial.js      # Ground-level OpenStreetMap tile overlay
+│   └── tooltip.js          # Hover tooltip system with centralised definitions
 ```
 
 ## Key Concepts
@@ -97,11 +99,12 @@ aq-opn-simulator/
 
 ### Link Budget
 
-Uses an aperture-to-aperture optical beam propagation model:
-- Beam divergence (diffraction-limited by default)
-- Atmospheric attenuation (scale-height model with weather conditions)
-- Receiver capture fraction
-- Pointing/tracking loss
+Uses a Gaussian beam propagation model (aperture-to-aperture):
+- **Beam divergence** — Diffraction-limited Gaussian: θ = λ / (π × w₀), where w₀ = D/2
+- **Beam expansion** — w(z) = w₀ √(1 + (z/z_R)²), with Rayleigh range z_R = πw₀²/λ
+- **Capture fraction** — Gaussian integral over receiver aperture: η = 1 − exp(−2(r_rx/w)²)
+- **Pointing loss** — exp(−2(σ_pointing/θ_divergence)²)
+- **Atmospheric attenuation** — Exponential scale-height model (H = 8.5 km) with slant-path correction
 
 ### Beam Types
 

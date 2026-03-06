@@ -34,7 +34,8 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 
 ## Key Modules
 - `constants.js` — Scale factors, physical constants, node type registry (8 types incl. ORBITAL_CUSTOMER), beam types, coordinate helpers
-- `physics.js` — Pure link budget calculations (aperture-to-aperture model with 1.22λ/D divergence), atmospheric attenuation, LOS
+- `physics.js` — Pure link budget calculations (Gaussian beam model: θ=λ/πw₀ divergence, 1−exp(−2r²/w²) capture), atmospheric attenuation, LOS
+- `tooltip.js` — Hover tooltip system with centralised TOOLTIPS registry; event delegation so dynamic elements work automatically
 - `nodeManager.js` — Node CRUD, Three.js mesh creation, selection, dragging
 - `linkManager.js` — Link CRUD, beam rendering with particles, status colour coding, per-frame visual position updates
 - `linkBudget.js` — Wraps physics.js for per-link budget computation with node parameters; status classification (ACTIVE/MARGINAL/BROKEN/INACTIVE)
@@ -58,7 +59,10 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 - In customer view, `#viewport-container` is `position: fixed; width: 100vw; height: 100vh` and `onResize()` uses `window.innerWidth/Height` directly — the flex layout is bypassed entirely
 - HUD stat elements (`#hud-left`, `#hud-right`, `#hud-epoch`, `#hud-speed`) are `pointer-events: none`; only buttons capture clicks
 - Pointing loss formula: exp(-2 × (σ_pointing / θ_divergence)²) — extremely sensitive when σ > θ. Default tracking accuracy (0.0001 mrad = 100 nrad) must be well below divergence half-angle
+- Beam model is Gaussian (not Airy/uniform): divergence = λ/(πw₀), capture = 1−exp(−2(r_rx/w)²). Tighter beam than 1.22λ/D but more pointing-sensitive
 - Demo scene uses MW-class sources with 5 m apertures and 100 nrad tracking to deliver 10s of kW at GEO distance
+- Hover tooltips on all technical metrics (both views). Tooltip text is centralised in `tooltip.js` TOOLTIPS registry. Uses `data-tooltip` attributes and event delegation — dynamic elements work automatically
+- App defaults to Customer View on startup; toggle button in header switches between views
 - Terrestrial tiles (OpenStreetMap) appear automatically when camera is within ~960 km of Earth surface
 - Brandmark SVG is dark (#0C0C0C); CSS `filter: invert(1)` makes it visible on dark theme
 - GitHub Pages deployed via Actions workflow from develop branch
