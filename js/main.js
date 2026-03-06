@@ -1229,11 +1229,13 @@ function setupDashboardBindings() {
         });
     });
 
-    // Dashboard time slider
+    // Dashboard time slider — also update revenue when scrubbing
     const dashSlider = document.getElementById('dash-time-slider');
     if (dashSlider) {
         dashSlider.addEventListener('input', () => {
             setSimTime(parseFloat(dashSlider.value));
+            updateDashboardRevenue();
+            updateDashboardHUD();
         });
     }
 }
