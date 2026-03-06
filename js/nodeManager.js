@@ -116,6 +116,7 @@ export function createNode(opts) {
     node.mesh = _createMesh(node);
     node.mesh.position.set(scenePos.x, scenePos.y, scenePos.z);
     node.mesh.userData.nodeId = id;
+    _orientToSurface(node);
     _nodeGroup.add(node.mesh);
 
     // Create billboard label
@@ -226,6 +227,7 @@ export function updateNodeType(id, newType) {
     node.mesh = _createMesh(node);
     node.mesh.position.set(node.scenePos.x, node.scenePos.y, node.scenePos.z);
     node.mesh.userData.nodeId = id;
+    _orientToSurface(node);
     _nodeGroup.add(node.mesh);
 
     node.label = _createLabel(node);
@@ -247,6 +249,7 @@ export function moveNode(id, scenePos) {
 
     node.scenePos = { x: scenePos.x, y: scenePos.y, z: scenePos.z };
     node.mesh.position.set(scenePos.x, scenePos.y, scenePos.z);
+    _orientToSurface(node);
 
     // Update lat/lon from scene pos if ground type
     if (node.type.startsWith('GROUND_') || node.type === 'MOBILE_NODE') {
@@ -264,6 +267,7 @@ export function setNodeScenePosition(id, x, y, z) {
     if (!node) return;
     node.scenePos = { x, y, z };
     node.mesh.position.set(x, y, z);
+    _orientToSurface(node);
 }
 
 /**
@@ -302,6 +306,52 @@ export function clearAllNodes() {
 }
 
 // ---------------------------------------------------------------------------
+// Surface-normal orientation
+// ---------------------------------------------------------------------------
+
+const _upVec = new THREE.Vector3(0, 1, 0);
+
+/**
+ * Orient a node's mesh group so its local Y-up aligns with the surface normal
+ * at the node's position. Ground nodes align to Earth radial, lunar nodes to
+ * Moon radial. Orbital relays align radially from Earth.
+ */
+function _orientToSurface(node) {
+    if (!node.mesh) return;
+
+    const pos = node.mesh.position;
+    let normal;
+
+    if (node.type === 'LUNAR_NODE') {
+        // For lunar nodes, the normal is relative to the Moon centre.
+        // Moon position can change, so use the current mesh position minus a
+        // rough Moon centre. Since we don't have Moon ref here, use the fact
+        // that lunar nodes are far from origin (distance > 100 scene units).
+        // The normal from Moon centre is approximately (pos - moonCentre).
+        // We store Moon distance constant for reference.
+        // Approximate: if distance from origin > 50, treat as lunar.
+        const dist = pos.length();
+        if (dist > 50) {
+            // Lunar node: normal is roughly radial from Moon centre.
+            // Moon is at ~384.4 on Z axis initially, so offset from that.
+            // We'll just use the position normalised as a reasonable approximation.
+            normal = pos.clone().normalize();
+        } else {
+            normal = pos.clone().normalize();
+        }
+    } else {
+        // Earth-centric nodes: normal is the radial direction from Earth centre (origin)
+        normal = pos.clone().normalize();
+    }
+
+    // If position is at origin (shouldn't happen), skip
+    if (normal.lengthSq() < 0.001) return;
+
+    // Set quaternion to rotate local Y-up to the surface normal
+    node.mesh.quaternion.setFromUnitVectors(_upVec, normal);
+}
+
+// ---------------------------------------------------------------------------
 // 3D Mesh creation per node type
 // ---------------------------------------------------------------------------
 
@@ -320,74 +370,257 @@ function _createMesh(node) {
 
     switch (typeDef.shape) {
         case 'cone_sphere': {
-            // Ground source: upward cone + sphere on top
-            const cone = new THREE.Mesh(
-                new THREE.ConeGeometry(0.12, 0.25, 8),
+            // Ground source: sun/power symbol — central disc with radiating spokes
+            const disc = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.1, 0.03, 16),
                 new THREE.MeshPhongMaterial(matOpts)
             );
-            cone.position.y = 0.125;
-            group.add(cone);
+            disc.position.y = 0.2;
+            group.add(disc);
 
-            const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.08, 12, 12),
-                new THREE.MeshPhongMaterial(matOpts)
+            // Radiating spokes around the disc
+            for (let a = 0; a < 8; a++) {
+                const angle = (a / 8) * Math.PI * 2;
+                const spoke = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.02, 0.02, 0.1),
+                    new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.5 })
+                );
+                spoke.position.set(
+                    Math.cos(angle) * 0.16,
+                    0.2,
+                    Math.sin(angle) * 0.16
+                );
+                spoke.rotation.y = -angle;
+                group.add(spoke);
+            }
+
+            // Base/pedestal
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.06, 0.08, 0.12, 8),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.15 })
             );
-            sphere.position.y = 0.3;
-            group.add(sphere);
+            base.position.y = 0.06;
+            group.add(base);
             break;
         }
         case 'octahedron': {
-            const mesh = new THREE.Mesh(
-                new THREE.OctahedronGeometry(0.15),
+            // Ground relay: antenna tower — vertical mast with cross-arms
+            const mast = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.015, 0.02, 0.3, 6),
                 new THREE.MeshPhongMaterial(matOpts)
             );
-            mesh.position.y = 0.15;
-            group.add(mesh);
+            mast.position.y = 0.15;
+            group.add(mast);
+
+            // Cross-arms at top
+            const crossArm = new THREE.Mesh(
+                new THREE.BoxGeometry(0.18, 0.015, 0.015),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.4 })
+            );
+            crossArm.position.y = 0.26;
+            group.add(crossArm);
+
+            // Second cross-arm perpendicular
+            const crossArm2 = new THREE.Mesh(
+                new THREE.BoxGeometry(0.015, 0.015, 0.18),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.4 })
+            );
+            crossArm2.position.y = 0.26;
+            group.add(crossArm2);
+
+            // Tip sphere (beacon)
+            const tip = new THREE.Mesh(
+                new THREE.SphereGeometry(0.03, 8, 8),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.6 })
+            );
+            tip.position.y = 0.32;
+            group.add(tip);
+
+            // Base
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.06, 0.07, 0.04, 6),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.15 })
+            );
+            base.position.y = 0.02;
+            group.add(base);
             break;
         }
         case 'cube': {
-            const mesh = new THREE.Mesh(
-                new THREE.BoxGeometry(0.18, 0.18, 0.18),
+            // Ground customer/receiver: dish antenna shape — bowl + receiver arm
+            // Dish bowl (hemisphere facing up)
+            const dishGeo = new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const dish = new THREE.Mesh(
+                dishGeo,
+                new THREE.MeshPhongMaterial({ ...matOpts, side: THREE.DoubleSide })
+            );
+            dish.rotation.x = Math.PI; // Flip to face upward
+            dish.position.y = 0.22;
+            group.add(dish);
+
+            // Receiver arm (small rod pointing up from dish centre)
+            const arm = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.01, 0.01, 0.1, 6),
                 new THREE.MeshPhongMaterial(matOpts)
             );
-            mesh.position.y = 0.09;
-            group.add(mesh);
+            arm.position.y = 0.27;
+            group.add(arm);
+
+            // Receiver element at top of arm
+            const recv = new THREE.Mesh(
+                new THREE.SphereGeometry(0.025, 8, 8),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.5 })
+            );
+            recv.position.y = 0.33;
+            group.add(recv);
+
+            // Support pedestal
+            const pedestal = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.03, 0.05, 0.14, 8),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.15 })
+            );
+            pedestal.position.y = 0.07;
+            group.add(pedestal);
             break;
         }
         case 'sphere_ring': {
-            // Orbital relay: sphere + ring torus
-            const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.12, 16, 16),
+            // Orbital relay / satellite: central body + two solar panel wings
+            // Central body (rectangular bus)
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.08, 0.12),
                 new THREE.MeshPhongMaterial(matOpts)
             );
-            group.add(sphere);
+            group.add(body);
 
-            const ring = new THREE.Mesh(
-                new THREE.TorusGeometry(0.2, 0.02, 8, 32),
-                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.5 })
+            // Dish on top
+            const dishGeo = new THREE.SphereGeometry(0.06, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+            const dish = new THREE.Mesh(
+                dishGeo,
+                new THREE.MeshPhongMaterial({ ...matOpts, side: THREE.DoubleSide, emissiveIntensity: 0.4 })
             );
-            ring.rotation.x = Math.PI / 2;
-            group.add(ring);
+            dish.rotation.x = Math.PI;
+            dish.position.y = 0.06;
+            group.add(dish);
+
+            // Solar panel wings (flat rectangles extending to each side)
+            const panelMat = new THREE.MeshPhongMaterial({
+                color: 0x2244aa,
+                emissive: 0x2244aa,
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.9,
+            });
+
+            // Left panel
+            const leftPanel = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.005, 0.1),
+                panelMat
+            );
+            leftPanel.position.x = -0.14;
+            group.add(leftPanel);
+
+            // Right panel
+            const rightPanel = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.005, 0.1),
+                panelMat.clone()
+            );
+            rightPanel.position.x = 0.14;
+            group.add(rightPanel);
+
+            // Panel struts
+            const strutMat = new THREE.MeshPhongMaterial({
+                color: colour,
+                emissive: colour,
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.9,
+            });
+            const leftStrut = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.005, 0.005, 0.08, 4),
+                strutMat
+            );
+            leftStrut.position.x = -0.05;
+            leftStrut.rotation.z = Math.PI / 2;
+            group.add(leftStrut);
+
+            const rightStrut = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.005, 0.005, 0.08, 4),
+                strutMat.clone()
+            );
+            rightStrut.position.x = 0.05;
+            rightStrut.rotation.z = Math.PI / 2;
+            group.add(rightStrut);
             break;
         }
         case 'cylinder': {
-            const mesh = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.1, 0.12, 0.2, 12),
+            // Lunar node: habitat dome + base module
+            // Dome
+            const domeGeo = new THREE.SphereGeometry(0.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const dome = new THREE.Mesh(
+                domeGeo,
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.2 })
+            );
+            dome.position.y = 0.08;
+            group.add(dome);
+
+            // Base ring
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.13, 0.08, 12),
                 new THREE.MeshPhongMaterial(matOpts)
             );
-            mesh.position.y = 0.1;
-            group.add(mesh);
+            base.position.y = 0.04;
+            group.add(base);
+
+            // Antenna on dome
+            const antenna = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.008, 0.008, 0.12, 4),
+                new THREE.MeshPhongMaterial({ ...matOpts, emissiveIntensity: 0.5 })
+            );
+            antenna.position.y = 0.2;
+            group.add(antenna);
             break;
         }
         case 'arrow_cone': {
-            // Mobile node: small cone (pointing forward)
-            const cone = new THREE.Mesh(
-                new THREE.ConeGeometry(0.08, 0.2, 8),
+            // Mobile node: drone/aircraft shape — fuselage + swept wings
+            const fuselage = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.025, 0.04, 0.18, 8),
                 new THREE.MeshPhongMaterial(matOpts)
             );
-            cone.rotation.z = -Math.PI / 2;
-            cone.position.y = 0.1;
-            group.add(cone);
+            fuselage.rotation.z = -Math.PI / 2;
+            fuselage.position.y = 0.12;
+            group.add(fuselage);
+
+            // Wings (swept delta)
+            const wingGeo = new THREE.BufferGeometry();
+            const wingVerts = new Float32Array([
+                0, 0, 0,         // root leading
+                -0.06, 0, -0.04, // tip left
+                0.06, 0, -0.04,  // tip right
+            ]);
+            wingGeo.setAttribute('position', new THREE.BufferAttribute(wingVerts, 3));
+            wingGeo.computeVertexNormals();
+            const wing = new THREE.Mesh(
+                wingGeo,
+                new THREE.MeshPhongMaterial({ ...matOpts, side: THREE.DoubleSide, emissiveIntensity: 0.4 })
+            );
+            wing.position.y = 0.12;
+            wing.position.x = 0.02;
+            group.add(wing);
+
+            // Tail fin
+            const tailGeo = new THREE.BufferGeometry();
+            const tailVerts = new Float32Array([
+                -0.06, 0, 0,
+                -0.08, 0.06, 0,
+                -0.08, 0, 0,
+            ]);
+            tailGeo.setAttribute('position', new THREE.BufferAttribute(tailVerts, 3));
+            tailGeo.computeVertexNormals();
+            const tail = new THREE.Mesh(
+                tailGeo,
+                new THREE.MeshPhongMaterial({ ...matOpts, side: THREE.DoubleSide })
+            );
+            tail.position.y = 0.12;
+            group.add(tail);
             break;
         }
         default: {

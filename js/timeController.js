@@ -4,9 +4,10 @@
  */
 
 import { MOON_DISTANCE, MOON_ORBITAL_PERIOD_S, SCENE_SCALE_KM } from './constants.js';
-import { propagateOrbit } from './orbitalMechanics.js';
+import { propagateOrbit, updateOrbitTrail } from './orbitalMechanics.js';
 import { getAllNodes, getNode, setNodeScenePosition } from './nodeManager.js';
 import { recomputeAllLinks } from './linkManager.js';
+import { sampleUptime, resetUptime } from './uptimeTracker.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -75,6 +76,7 @@ export function setSpeed(multiplier) {
 
 export function resetTime() {
     _simTime = 0;
+    resetUptime();
     _updateEpochDisplay();
     _updateSlider();
     _propagateAll();
@@ -114,9 +116,10 @@ function _propagateAll() {
     let changed = false;
 
     for (const node of nodes) {
-        if (node.type === 'ORBITAL_RELAY' && node.params.orbitalElements) {
+        if ((node.type === 'ORBITAL_RELAY' || node.type === 'ORBITAL_CUSTOMER') && node.params.orbitalElements) {
             const pos = propagateOrbit(node.params.orbitalElements, _simTime);
             setNodeScenePosition(node.id, pos.x, pos.y, pos.z);
+            updateOrbitTrail(node.id, node.params.orbitalElements, _simTime, 0x4488ff);
             changed = true;
         }
     }
@@ -134,6 +137,9 @@ function _propagateAll() {
     if (changed) {
         recomputeAllLinks();
     }
+
+    // Sample uptime for receiver nodes
+    sampleUptime();
 }
 
 // ---------------------------------------------------------------------------

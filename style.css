@@ -1,5 +1,5 @@
 /* ============================================================
-   Aquila OPN Simulator — Dark theme styles
+   Aquila Optical Power Network Simulator — Dark theme styles
    ============================================================ */
 
 /* --- Reset & Base ------------------------------------------ */
@@ -17,7 +17,7 @@
     --text-dim: #888899;
     --accent: #4a9eff;
     --accent-light: #00d4ff;
-    --link-active: #00ff88;
+    --link-active: #00ff44;
     --link-marginal: #ffaa00;
     --link-broken: #ff3344;
     --sidebar-width: 300px;
@@ -536,6 +536,59 @@ html, body {
     font-size: 10px;
 }
 
+.node-list-item .node-uptime {
+    font-size: 9px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    color: var(--link-active);
+    flex-shrink: 0;
+}
+
+/* --- Link list --------------------------------------------- */
+.link-list-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.1s;
+}
+
+.link-list-item:hover {
+    background: rgba(74, 158, 255, 0.1);
+}
+
+.link-list-item.selected {
+    background: rgba(74, 158, 255, 0.2);
+}
+
+.link-list-item .link-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.link-list-item .link-names {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.link-list-item .link-names .link-arrow {
+    color: var(--text-dim);
+    margin: 0 2px;
+}
+
+.link-list-item .link-power {
+    font-size: 9px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
 /* --- Link budget table ------------------------------------- */
 .budget-table {
     width: 100%;
@@ -576,6 +629,34 @@ html, body {
 
 .budget-table .budget-marginal {
     color: var(--link-marginal);
+}
+
+/* --- Legend ------------------------------------------------ */
+.legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.legend-colour {
+    width: 16px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.legend-colour.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
 }
 
 /* --- Empty state / placeholder text ------------------------ */

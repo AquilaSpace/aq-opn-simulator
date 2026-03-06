@@ -26,7 +26,9 @@ import {
 } from './linkManager.js';
 import { showLinkInspector } from './linkInspector.js';
 import { computeNetworkMetrics } from './networkGraph.js';
-import { initTimeController, updateTimeController } from './timeController.js';
+import { initTimeController, updateTimeController, onTimeTick } from './timeController.js';
+import { initOrbitTrails } from './orbitalMechanics.js';
+import { getUptimeString } from './uptimeTracker.js';
 import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
 import { downloadJSON, importFromFile, exportScreenshot, importNetwork } from './serialisation.js';
 import { initTerrestrial, updateTerrestrial } from './terrestrial.js';
@@ -87,6 +89,32 @@ let gridVisible = true;
 const moonMesh = createMoon();
 scene.add(moonMesh);
 
+// Earth-Moon corridor indicator (dashed line for cislunar visualisation)
+const corridorMaterial = new THREE.LineDashedMaterial({
+    color: 0x334466,
+    transparent: true,
+    opacity: 0.3,
+    dashSize: 2,
+    gapSize: 1,
+    depthWrite: false,
+});
+const corridorGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    moonMesh.position.clone(),
+]);
+const corridorLine = new THREE.Line(corridorGeometry, corridorMaterial);
+corridorLine.computeLineDistances();
+corridorLine.name = 'earth-moon-corridor';
+scene.add(corridorLine);
+
+// Update corridor line when Moon moves (called from render loop)
+function updateCorridorLine() {
+    const positions = corridorLine.geometry.attributes.position;
+    positions.setXYZ(1, moonMesh.position.x, moonMesh.position.y, moonMesh.position.z);
+    positions.needsUpdate = true;
+    corridorLine.computeLineDistances();
+}
+
 
 // ---------------------------------------------------------------------------
 // Camera presets
@@ -133,6 +161,7 @@ initLinkManager(scene);
 
 onLinkSelect((linkId) => {
     showLinkInspector(linkId);
+    updateLinkList();
     if (linkId) {
         selectNode(null); // Deselect node when link is selected
     }
@@ -140,6 +169,7 @@ onLinkSelect((linkId) => {
 
 onLinkChange(() => {
     updateStats();
+    updateLinkList();
 });
 
 // ---------------------------------------------------------------------------
@@ -147,6 +177,23 @@ onLinkChange(() => {
 // ---------------------------------------------------------------------------
 
 initTimeController(moonMesh);
+
+// Update uptime display in node editor when sim ticks
+onTimeTick(() => {
+    const uptimeEl = document.getElementById('ne-uptime-value');
+    if (uptimeEl) {
+        const selectedId = getSelectedNodeId();
+        if (selectedId) {
+            uptimeEl.textContent = getUptimeString(selectedId);
+        }
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Orbit trail rendering
+// ---------------------------------------------------------------------------
+
+initOrbitTrails(scene);
 
 // ---------------------------------------------------------------------------
 // Terrestrial detail
@@ -374,10 +421,9 @@ function onMouseUp(event) {
     raycaster.setFromCamera(mouse, camera);
     const earthHits = raycaster.intersectObject(earthMesh);
     if (earthHits.length > 0) {
+        // Use world-space intersection point directly (sceneToLatLonAlt works in world space)
         const point = earthHits[0].point;
-        const invMatrix = new THREE.Matrix4().copy(earthMesh.matrixWorld).invert();
-        const localPoint = point.clone().applyMatrix4(invMatrix);
-        const pos = sceneToLatLonAlt(localPoint.x, localPoint.y, localPoint.z);
+        const pos = sceneToLatLonAlt(point.x, point.y, point.z);
         _showAddMenu(event.clientX, event.clientY, { lat_deg: pos.lat_deg, lon_deg: pos.lon_deg, alt_km: 0 });
         return;
     }
@@ -484,16 +530,66 @@ function updateNodeList() {
     listEl.innerHTML = '';
     for (const node of nodes) {
         const typeDef = NODE_TYPES[node.type];
+        const isReceiver = node.type === 'GROUND_CUSTOMER' || node.type === 'ORBITAL_CUSTOMER' || node.type === 'LUNAR_NODE';
+        const uptimeStr = isReceiver ? getUptimeString(node.id) : '';
+        const uptimeHtml = uptimeStr && uptimeStr !== '\u2014' ? `<span class="node-uptime" title="Power uptime">${uptimeStr}</span>` : '';
         const item = document.createElement('div');
         item.className = 'node-list-item' + (node.id === selectedId ? ' selected' : '');
         item.innerHTML = `
             <span class="node-colour-dot" style="background: ${typeDef.colourHex}"></span>
             <span class="node-name">${node.name}</span>
+            ${uptimeHtml}
             <span class="node-type">${typeDef.label}</span>
         `;
         item.addEventListener('click', () => {
             selectNode(node.id);
             focusOn(new THREE.Vector3(node.scenePos.x, node.scenePos.y, node.scenePos.z));
+        });
+        listEl.appendChild(item);
+    }
+}
+
+function updateLinkList() {
+    const listEl = document.getElementById('link-list');
+    if (!listEl) return;
+
+    const links = getAllLinks();
+    const selectedLinkId = getSelectedLinkId();
+
+    if (links.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">No links yet. Shift+click nodes to connect.</div>';
+        return;
+    }
+
+    listEl.innerHTML = '';
+    for (const link of links) {
+        const fromNode = getNode(link.fromId);
+        const toNode = getNode(link.toId);
+        const fromName = fromNode ? fromNode.name : '?';
+        const toName = toNode ? toNode.name : '?';
+
+        const statusColour = {
+            ACTIVE: '#00ff44', MARGINAL: '#ffaa00',
+            BROKEN: '#ff3344', INACTIVE: '#666688',
+        }[link.status] || '#666688';
+
+        const powerStr = link.budget
+            ? (link.budget.rxPower_kW >= 1
+                ? link.budget.rxPower_kW.toFixed(2) + ' kW'
+                : (link.budget.rxPower_W >= 0.01
+                    ? link.budget.rxPower_W.toFixed(1) + ' W'
+                    : link.budget.rxPower_W.toExponential(1) + ' W'))
+            : '';
+
+        const item = document.createElement('div');
+        item.className = 'link-list-item' + (link.id === selectedLinkId ? ' selected' : '');
+        item.innerHTML = `
+            <span class="link-status-dot" style="background: ${statusColour}"></span>
+            <span class="link-names">${fromName}<span class="link-arrow"> → </span>${toName}</span>
+            <span class="link-power">${powerStr}</span>
+        `;
+        item.addEventListener('click', () => {
+            selectLink(link.id);
         });
         listEl.appendChild(item);
     }
@@ -510,6 +606,17 @@ function updateStats() {
 // ---------------------------------------------------------------------------
 
 function setupUIBindings() {
+    // Populate node type legend
+    const legendEl = document.getElementById('node-type-legend');
+    if (legendEl) {
+        for (const [key, typeDef] of Object.entries(NODE_TYPES)) {
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `<span class="legend-colour legend-dot" style="background: ${typeDef.colourHex};"></span><span>${typeDef.label}</span>`;
+            legendEl.appendChild(item);
+        }
+    }
+
     // Camera preset buttons
     document.querySelectorAll('[data-camera-preset]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -565,7 +672,7 @@ function setupUIBindings() {
     if (btnImport) btnImport.addEventListener('click', () => {
         importFromFile();
         // After import, update UI
-        setTimeout(() => { updateNodeList(); updateStats(); }, 200);
+        setTimeout(() => { updateNodeList(); updateLinkList(); updateStats(); }, 200);
     });
 
     const btnScreenshot = document.getElementById('btn-screenshot');
@@ -638,6 +745,9 @@ function animate() {
     // Update time controller (orbital propagation)
     updateTimeController(dt);
 
+    // Update Earth-Moon corridor line
+    updateCorridorLine();
+
     // Update terrestrial detail tiles
     updateTerrestrial();
 
@@ -668,6 +778,8 @@ function loadDemoScene() {
             atmosphericCondition: 'clear',
             epoch: '2025-03-05T12:00:00Z',
         },
+        // Parameters sized for GEO-distance optical power beaming:
+        // large apertures (1.5–2 m), sub-μrad tracking, high Tx power.
         nodes: [
             {
                 id: 'node-001',
@@ -675,11 +787,11 @@ function loadDemoScene() {
                 name: 'Sydney Solar Farm',
                 position: { lat_deg: -33.86, lon_deg: 151.21, alt_km: 0 },
                 params: {
-                    transmitPower_kW: 50,
-                    apertureDiameter_m: 0.5,
-                    trackingAccuracy_mrad: 0.1,
+                    transmitPower_kW: 200,
+                    apertureDiameter_m: 1.8,
+                    trackingAccuracy_mrad: 0.0005,
                     transmitterEfficiency: 0.85,
-                    totalAvailablePower_kW: 100,
+                    totalAvailablePower_kW: 500,
                     outputBeams: 4,
                 },
             },
@@ -689,11 +801,11 @@ function loadDemoScene() {
                 name: 'Mojave Power Station',
                 position: { lat_deg: 35.05, lon_deg: -117.18, alt_km: 0 },
                 params: {
-                    transmitPower_kW: 100,
-                    apertureDiameter_m: 0.6,
-                    trackingAccuracy_mrad: 0.08,
+                    transmitPower_kW: 300,
+                    apertureDiameter_m: 2.0,
+                    trackingAccuracy_mrad: 0.0005,
                     transmitterEfficiency: 0.88,
-                    totalAvailablePower_kW: 200,
+                    totalAvailablePower_kW: 750,
                     outputBeams: 6,
                 },
             },
@@ -703,24 +815,32 @@ function loadDemoScene() {
                 name: 'Pilbara Mine Site',
                 position: { lat_deg: -22.3, lon_deg: 118.8, alt_km: 0 },
                 params: {
-                    requiredPower_kW: 20,
-                    apertureDiameter_m: 0.6,
-                    trackingAccuracy_mrad: 0.15,
+                    requiredPower_kW: 0.005,
+                    apertureDiameter_m: 2.0,
+                    trackingAccuracy_mrad: 0.0005,
                 },
             },
             {
                 id: 'node-004',
-                type: 'GROUND_RELAY',
-                name: 'Nullarbor Relay',
-                position: { lat_deg: -31.0, lon_deg: 130.0, alt_km: 0 },
+                type: 'ORBITAL_RELAY',
+                name: 'Indian Ocean GEO Relay',
+                position: { lat_deg: 0, lon_deg: 105, alt_km: 35786 },
                 params: {
-                    transmitPower_kW: 40,
-                    apertureDiameter_m: 0.4,
-                    trackingAccuracy_mrad: 0.1,
-                    transmitterEfficiency: 0.80,
-                    receiveAperture_m: 0.5,
-                    retransmitEfficiency: 0.75,
-                    maxSimultaneousLinks: 4,
+                    transmitPower_kW: 100,
+                    apertureDiameter_m: 1.8,
+                    trackingAccuracy_mrad: 0.0003,
+                    transmitterEfficiency: 0.82,
+                    receiveAperture_m: 2.0,
+                    retransmitEfficiency: 0.72,
+                    maxSimultaneousLinks: 6,
+                    orbitalElements: {
+                        semiMajorAxis_km: 42164,
+                        eccentricity: 0,
+                        inclination_deg: 0,
+                        raan_deg: 0,
+                        argOfPerigee_deg: 0,
+                        trueAnomaly_deg: 105,
+                    },
                 },
             },
             {
@@ -729,11 +849,11 @@ function loadDemoScene() {
                 name: 'Pacific GEO Relay',
                 position: { lat_deg: 0, lon_deg: -170, alt_km: 35786 },
                 params: {
-                    transmitPower_kW: 30,
-                    apertureDiameter_m: 0.3,
-                    trackingAccuracy_mrad: 0.05,
+                    transmitPower_kW: 100,
+                    apertureDiameter_m: 1.8,
+                    trackingAccuracy_mrad: 0.0003,
                     transmitterEfficiency: 0.80,
-                    receiveAperture_m: 0.4,
+                    receiveAperture_m: 2.0,
                     retransmitEfficiency: 0.70,
                     maxSimultaneousLinks: 6,
                     orbitalElements: {
@@ -752,40 +872,62 @@ function loadDemoScene() {
                 name: 'Tokyo Receiver',
                 position: { lat_deg: 35.68, lon_deg: 139.69, alt_km: 0 },
                 params: {
-                    requiredPower_kW: 30,
-                    apertureDiameter_m: 0.5,
-                    trackingAccuracy_mrad: 0.12,
+                    requiredPower_kW: 0.005,
+                    apertureDiameter_m: 2.0,
+                    trackingAccuracy_mrad: 0.0005,
                 },
             },
             {
                 id: 'node-007',
+                type: 'ORBITAL_CUSTOMER',
+                name: 'LEO Science Platform',
+                position: { lat_deg: 0, lon_deg: 120, alt_km: 400 },
+                params: {
+                    requiredPower_kW: 0.001,
+                    apertureDiameter_m: 1.0,
+                    trackingAccuracy_mrad: 0.0003,
+                    orbitalElements: {
+                        semiMajorAxis_km: 6771,
+                        eccentricity: 0,
+                        inclination_deg: 51.6,
+                        raan_deg: 0,
+                        argOfPerigee_deg: 0,
+                        trueAnomaly_deg: 120,
+                    },
+                },
+            },
+            {
+                id: 'node-008',
                 type: 'LUNAR_NODE',
                 name: 'Shackleton Base',
                 // Lunar south pole — positioned on Moon surface
                 // Moon initial position is at (0, 0, 384.4) scene units
-                // Shackleton is near lunar south pole, so offset in -Y from Moon centre
                 position: { x: 0, y: -1.737, z: 384.4 },
                 params: {
                     transmitPower_kW: 5,
-                    apertureDiameter_m: 0.3,
-                    trackingAccuracy_mrad: 0.2,
+                    apertureDiameter_m: 1.0,
+                    trackingAccuracy_mrad: 0.001,
                     transmitterEfficiency: 0.80,
-                    requiredPower_kW: 10,
+                    requiredPower_kW: 0.001,
                 },
             },
         ],
         links: [
+            // Sydney → Indian Ocean GEO Relay → Pilbara (via GEO)
             { id: 'link-001', from: 'node-001', to: 'node-004', wavelength_nm: null },
             { id: 'link-002', from: 'node-004', to: 'node-003', wavelength_nm: null },
-            { id: 'link-003', from: 'node-001', to: 'node-005', wavelength_nm: null },
-            { id: 'link-004', from: 'node-005', to: 'node-002', wavelength_nm: null },
-            { id: 'link-005', from: 'node-001', to: 'node-006', wavelength_nm: null },
-            { id: 'link-006', from: 'node-002', to: 'node-005', wavelength_nm: null },
+            // Indian Ocean GEO Relay → Tokyo (downlink from GEO)
+            { id: 'link-003', from: 'node-004', to: 'node-006', wavelength_nm: null },
+            // Mojave → Pacific GEO Relay
+            { id: 'link-004', from: 'node-002', to: 'node-005', wavelength_nm: null },
+            // Pacific GEO Relay → LEO Science Platform (orbital-to-orbital)
+            { id: 'link-005', from: 'node-005', to: 'node-007', wavelength_nm: null },
         ],
     };
 
     importNetwork(demoNetwork);
     updateNodeList();
+    updateLinkList();
     updateStats();
 }
 
@@ -794,4 +936,4 @@ loadDemoScene();
 
 animate();
 
-console.log('Aquila OPN Simulator initialised.');
+console.log('Aquila Optical Power Network Simulator initialised.');

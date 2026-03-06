@@ -11,6 +11,7 @@ import {
     createSliderControl, createSelectControl, createTextControl,
     createButton, createSectionTitle,
 } from './uiPanel.js';
+import { getUptimeString } from './uptimeTracker.js';
 
 const _panelEl = document.getElementById('panel-node-editor');
 const _bodyEl = document.getElementById('node-editor-body');
@@ -92,7 +93,7 @@ export function showNodeEditor(nodeId) {
     }
 
     // Orbital elements
-    if (node.type === 'ORBITAL_RELAY') {
+    if (node.type === 'ORBITAL_RELAY' || node.type === 'ORBITAL_CUSTOMER') {
         _bodyEl.appendChild(createSectionTitle('Orbital Elements'));
 
         // Orbital preset selector
@@ -258,7 +259,7 @@ export function showNodeEditor(nodeId) {
     }
 
     // Customer-specific
-    if (node.type === 'GROUND_CUSTOMER' || node.type === 'LUNAR_NODE') {
+    if (node.type === 'GROUND_CUSTOMER' || node.type === 'ORBITAL_CUSTOMER' || node.type === 'LUNAR_NODE') {
         _bodyEl.appendChild(createSectionTitle('Customer'));
         _bodyEl.appendChild(createSliderControl({
             label: 'Required',
@@ -268,6 +269,24 @@ export function showNodeEditor(nodeId) {
             unit: 'kW',
             onChange: (v) => updateNodeParams(nodeId, { requiredPower_kW: v }),
         }));
+
+        // Uptime display (read-only, updated by time simulation)
+        const uptimeRow = document.createElement('div');
+        uptimeRow.className = 'control-row';
+        uptimeRow.id = 'ne-uptime-row';
+        const uptimeLabel = document.createElement('label');
+        uptimeLabel.textContent = 'Uptime';
+        uptimeRow.appendChild(uptimeLabel);
+        const uptimeValue = document.createElement('span');
+        uptimeValue.id = 'ne-uptime-value';
+        uptimeValue.style.cssText = 'font-family: monospace; font-size: 12px; font-weight: 600; color: var(--text);';
+        uptimeValue.textContent = getUptimeString(nodeId);
+        uptimeRow.appendChild(uptimeValue);
+        const uptimeHint = document.createElement('span');
+        uptimeHint.style.cssText = 'font-size: 9px; color: var(--text-dim);';
+        uptimeHint.textContent = '(play sim)';
+        uptimeRow.appendChild(uptimeHint);
+        _bodyEl.appendChild(uptimeRow);
     }
 
     // Mobile-specific

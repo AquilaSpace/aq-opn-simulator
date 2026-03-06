@@ -37,6 +37,8 @@ export function createEarth() {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = 'earth';
+    // Rotate -90° around Y so the texture centre (0° lon / Greenwich) aligns with +Z
+    mesh.rotation.y = -Math.PI / 2;
 
     // Atmosphere glow — slightly larger transparent sphere with additive blending
     const atmosGeometry = new THREE.SphereGeometry(EARTH_RADIUS * 1.015, 64, 64);

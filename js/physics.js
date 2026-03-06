@@ -42,9 +42,9 @@ export function computeLinkBudget(opts) {
         atmosphericLoss = 1.0,
     } = opts;
 
-    // Diffraction-limited divergence half-angle
+    // Diffraction-limited divergence half-angle (Airy disk first minimum: 1.22 λ/D)
     const divergence_rad = opts.divergenceHalfAngle_rad
-        || (1.2 * wavelength_m / txApertureDiameter_m);
+        || (1.22 * wavelength_m / txApertureDiameter_m);
 
     // Beam diameter at receiver distance
     const beamDiameterAtRx_m = txApertureDiameter_m + 2 * distance_m * Math.tan(divergence_rad);
@@ -95,8 +95,7 @@ export function computeLinkBudget(opts) {
         rxPower_W,
         rxPower_kW: rxPower_W / 1000,
         rxPower_dBW,
-        linkMargin_dB: rxPower_dBW - txPower_dBW, // relative to free-space
-        totalLoss_dB: rxPower_dBW - txPower_dBW,
+        totalPathLoss_dB: txPower_dBW - rxPower_dBW, // positive value = loss
     };
 }
 

@@ -237,42 +237,51 @@ function _createLinkVisuals(link) {
     // Main beam line
     const statusDef = LINK_STATUS[link.status] || LINK_STATUS.INACTIVE;
     const beamColour = _getBeamColour(link);
+    const linkLength = points[0].distanceTo(points[1]);
+
+    // Only show beam visuals when link is actively transmitting
+    const showBeam = link.status === 'ACTIVE' || link.status === 'MARGINAL';
 
     const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
     const lineMaterial = new THREE.LineBasicMaterial({
         color: statusDef.colour,
         transparent: true,
-        opacity: link.status === 'INACTIVE' ? 0.2 : 0.7,
+        opacity: 0.7,
         linewidth: 1,
     });
     const line = new THREE.Line(lineGeometry, lineMaterial);
     line.name = 'beamLine';
+    line.visible = showBeam;
     group.add(line);
 
-    // Glow line (wider, more transparent)
+    // Glow line (wider, more transparent; brighter for cislunar)
+    const glowOpacity = linkLength > 50 ? 0.35 : 0.15;
     const glowMaterial = new THREE.LineBasicMaterial({
         color: beamColour,
         transparent: true,
-        opacity: link.status === 'INACTIVE' ? 0.05 : 0.15,
+        opacity: glowOpacity,
         linewidth: 1,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
     });
     const glowLine = new THREE.Line(lineGeometry.clone(), glowMaterial);
     glowLine.name = 'glowLine';
+    glowLine.visible = showBeam;
     group.add(glowLine);
 
-    // Energy flow particles
-    const particleCount = 12;
+    // Scale particle count and size for long-range (cislunar) links
+    const isCislunar = linkLength > 50; // > 50,000 km
+    const particleCount = isCislunar ? 24 : 12;
+    const particleSize = isCislunar ? 0.4 : 0.08;
     const particlePositions = new Float32Array(particleCount * 3);
     const particleGeometry = new THREE.BufferGeometry();
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
     const particleMaterial = new THREE.PointsMaterial({
         color: beamColour,
-        size: 0.08,
+        size: particleSize,
         transparent: true,
-        opacity: link.status === 'INACTIVE' ? 0 : 0.8,
+        opacity: 0.8,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         sizeAttenuation: true,
@@ -280,13 +289,14 @@ function _createLinkVisuals(link) {
 
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     particles.name = 'particles';
+    particles.visible = showBeam;
     group.add(particles);
 
     // Direction arrow (small cone at midpoint)
     const mid = new THREE.Vector3().lerpVectors(points[0], points[1], 0.5);
     const dir = new THREE.Vector3().subVectors(points[1], points[0]).normalize();
-    const linkLength = points[0].distanceTo(points[1]);
-    const arrowGeo = new THREE.ConeGeometry(0.04, 0.12, 6);
+    const arrowSize = linkLength > 50 ? 0.3 : 0.04;
+    const arrowGeo = new THREE.ConeGeometry(arrowSize, arrowSize * 3, 6);
     const arrowMat = new THREE.MeshBasicMaterial({
         color: statusDef.colour,
         transparent: true,
@@ -296,6 +306,7 @@ function _createLinkVisuals(link) {
     arrow.position.copy(mid);
     arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
     arrow.name = 'arrow';
+    arrow.visible = showBeam;
     group.add(arrow);
 
     // Invisible cylinder for reliable click detection
@@ -329,43 +340,54 @@ function _updateLinkVisuals(link) {
 
     const statusDef = LINK_STATUS[link.status] || LINK_STATUS.INACTIVE;
     const beamColour = _getBeamColour(link);
-    const isInactive = link.status === 'INACTIVE';
+    // Hide laser visuals entirely for broken/inactive links
+    const showBeam = link.status === 'ACTIVE' || link.status === 'MARGINAL';
 
     link.mesh.traverse(child => {
         if (child.isLine && child.name === 'beamLine') {
-            const positions = [from, to];
-            child.geometry.setFromPoints(positions);
-            child.material.color.setHex(statusDef.colour);
-            child.material.opacity = isInactive ? 0.2 : 0.7;
-            if (link.status === 'BROKEN' || link.status === 'INACTIVE') {
-                child.material.dashSize = 0.3;
-                child.material.gapSize = 0.15;
+            child.geometry.setFromPoints([from, to]);
+            child.visible = showBeam;
+            if (showBeam) {
+                child.material.color.setHex(statusDef.colour);
+                child.material.opacity = 0.7;
             }
         }
         if (child.isLine && child.name === 'glowLine') {
             child.geometry.setFromPoints([from, to]);
-            child.material.color.setHex(beamColour);
-            child.material.opacity = isInactive ? 0.05 : 0.15;
+            child.visible = showBeam;
+            if (showBeam) {
+                child.material.color.setHex(beamColour);
+                const linkLen = from.distanceTo(to);
+                child.material.opacity = linkLen > 50 ? 0.35 : 0.15;
+            }
         }
         if (child.name === 'arrow') {
             const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
             const dir = new THREE.Vector3().subVectors(to, from).normalize();
             child.position.copy(mid);
             child.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-            child.material.color.setHex(statusDef.colour);
-            child.material.opacity = isInactive ? 0.2 : 0.6;
+            child.visible = showBeam;
+            if (showBeam) {
+                child.material.color.setHex(statusDef.colour);
+                child.material.opacity = 0.6;
+            }
         }
         if (child.isPoints && child.name === 'particles') {
-            child.material.color.setHex(beamColour);
-            child.material.opacity = isInactive ? 0 : 0.8;
+            child.visible = showBeam;
+            if (showBeam) {
+                child.material.color.setHex(beamColour);
+                child.material.opacity = 0.8;
+                const linkLen = from.distanceTo(to);
+                child.material.size = linkLen > 50 ? 0.4 : 0.08;
+            }
         }
         if (child.isMesh && child.name === 'hitTarget') {
+            // Hit target always stays for click detection
             const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
             const dir = new THREE.Vector3().subVectors(to, from).normalize();
             const linkLength = from.distanceTo(to);
             child.position.copy(mid);
             child.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-            // Rebuild geometry for new length
             child.geometry.dispose();
             const hitRadius = Math.max(0.08, linkLength * 0.003);
             child.geometry = new THREE.CylinderGeometry(hitRadius, hitRadius, linkLength, 6, 1);
@@ -407,7 +429,9 @@ export function updateLinkAnimations(dt) {
     _animTime += dt;
 
     for (const link of _links.values()) {
-        if (!link.mesh || link.status === 'INACTIVE') continue;
+        if (!link.mesh) continue;
+        // Only animate particles for visible (active/marginal) links
+        if (link.status === 'INACTIVE' || link.status === 'BROKEN') continue;
 
         const fromNode = getNode(link.fromId);
         const toNode = getNode(link.toId);

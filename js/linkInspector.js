@@ -79,6 +79,7 @@ export function showLinkInspector(linkId) {
             ['Capture fraction', `${(b.rxCaptureFraction * 100).toFixed(4)}% (${b.captureLoss_dB.toFixed(2)} dB)`],
             ['Pointing loss', `${b.pointingLoss_dB.toFixed(2)} dB`],
             ['Atmospheric loss', `${b.atmosphericLoss_dB.toFixed(2)} dB`],
+            ['Total path loss', `${b.totalPathLoss_dB.toFixed(2)} dB`],
             ['Elevation angle', `${b.elevAngle_deg.toFixed(1)}°`],
             ['LOS clear', b.losOk ? 'Yes' : 'BLOCKED'],
         ];
