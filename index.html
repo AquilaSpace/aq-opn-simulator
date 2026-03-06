@@ -275,19 +275,18 @@
         <button class="hud-btn hud-btn-dim" id="dash-btn-engineer" title="Switch to engineering view">Engineer View</button>
     </div>
 
-    <!-- Bottom-left: epoch -->
-    <div id="hud-epoch">
+    <!-- Bottom: time bar with slider and speed controls -->
+    <div id="hud-timebar">
         <span id="dash-epoch-display">2025-03-05 12:00:00 UTC</span>
-    </div>
-
-    <!-- Bottom-right: speed controls -->
-    <div id="hud-speed">
-        <button class="dash-speed-btn active" data-dash-speed="1">1&times;</button>
-        <button class="dash-speed-btn" data-dash-speed="10">10&times;</button>
-        <button class="dash-speed-btn" data-dash-speed="100">100&times;</button>
-        <button class="dash-speed-btn" data-dash-speed="1000">1000&times;</button>
-        <button class="dash-speed-btn" data-dash-speed="5000">5000&times;</button>
-        <button class="dash-speed-btn" data-dash-speed="10000">10000&times;</button>
+        <input type="range" class="time-slider" id="dash-time-slider" min="0" max="86400" value="0">
+        <div id="hud-speed-inline">
+            <button class="dash-speed-btn active" data-dash-speed="1">1&times;</button>
+            <button class="dash-speed-btn" data-dash-speed="10">10&times;</button>
+            <button class="dash-speed-btn" data-dash-speed="100">100&times;</button>
+            <button class="dash-speed-btn" data-dash-speed="1000">1000&times;</button>
+            <button class="dash-speed-btn" data-dash-speed="5000">5000&times;</button>
+            <button class="dash-speed-btn" data-dash-speed="10000">10000&times;</button>
+        </div>
     </div>
 
 </div>

@@ -710,7 +710,7 @@ html, body {
 }
 
 #dashboard-hud #hud-actions,
-#dashboard-hud #hud-speed,
+#dashboard-hud #hud-timebar,
 #dashboard-hud .dash-speed-btn,
 #dashboard-hud .hud-btn,
 #dashboard-hud .hud-stat[data-tooltip] {
@@ -718,9 +718,7 @@ html, body {
 }
 
 #hud-left,
-#hud-right,
-#hud-epoch,
-#hud-speed {
+#hud-right {
     pointer-events: none;
 }
 
@@ -875,21 +873,34 @@ html, body {
     margin: 0 4px;
 }
 
-#hud-epoch {
+#hud-timebar {
     position: absolute;
     bottom: 72px;
     left: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+#hud-timebar #dash-epoch-display {
     font-size: 11px;
     color: var(--text-dim);
     letter-spacing: 1px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-#hud-speed {
-    position: absolute;
-    bottom: 72px;
-    right: 20px;
+#hud-timebar .time-slider {
+    flex: 1;
+    min-width: 0;
+}
+
+#hud-speed-inline {
     display: flex;
     gap: 4px;
+    flex-shrink: 0;
 }
 
 .dash-speed-btn {

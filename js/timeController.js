@@ -58,6 +58,12 @@ export function onTimeTick(fn) { _listeners.tick.push(fn); }
 // ---------------------------------------------------------------------------
 
 export function getSimTime() { return _simTime; }
+export function setSimTime(t) {
+    _simTime = t;
+    _updateEpochDisplay();
+    _updateSlider();
+    _propagateAll();
+}
 export function isPlaying() { return _playing; }
 export function getSpeedMultiplier() { return _speedMultiplier; }
 
@@ -219,11 +225,18 @@ function _updateEpochDisplay() {
 }
 
 function _updateSlider() {
-    const slider = document.getElementById('time-slider');
-    if (!slider) return;
-
-    // Dynamically adjust slider range to current sim time
     const maxVal = Math.max(86400, _simTime + 3600);
-    slider.max = maxVal;
-    slider.value = _simTime;
+
+    const slider = document.getElementById('time-slider');
+    if (slider) {
+        slider.max = maxVal;
+        slider.value = _simTime;
+    }
+
+    // Sync dashboard slider
+    const dashSlider = document.getElementById('dash-time-slider');
+    if (dashSlider) {
+        dashSlider.max = maxVal;
+        dashSlider.value = _simTime;
+    }
 }

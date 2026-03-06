@@ -26,7 +26,7 @@ import {
 } from './linkManager.js';
 import { showLinkInspector } from './linkInspector.js';
 import { computeNetworkMetrics } from './networkGraph.js';
-import { initTimeController, updateTimeController, onTimeTick, isPlaying, setPlaying, setSpeed, resetTime, getSimTime } from './timeController.js';
+import { initTimeController, updateTimeController, onTimeTick, isPlaying, setPlaying, setSpeed, resetTime, getSimTime, setSimTime } from './timeController.js';
 import { initOrbitTrails } from './orbitalMechanics.js';
 import { getUptime, getUptimeString, resetUptime } from './uptimeTracker.js';
 import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
@@ -260,13 +260,30 @@ function _createAddMenu() {
         box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     `;
 
-    for (const [key, typeDef] of Object.entries(NODE_TYPES)) {
-        if (key === 'ORBITAL_RELAY') continue;
+    // Ordered node types: ground first, then orbital, then special
+    const orderedTypes = [
+        'GROUND_SOURCE', 'GROUND_RELAY', 'GROUND_CUSTOMER',
+        'ORBITAL_RELAY', 'ORBITAL_CUSTOMER',
+        'LUNAR_NODE', 'MOBILE_NODE',
+    ];
+
+    let lastGroup = null;
+    for (const key of orderedTypes) {
+        const typeDef = NODE_TYPES[key];
+        if (!typeDef) continue;
+
+        // Add a subtle separator between groups
+        const group = key.startsWith('GROUND_') ? 'ground'
+            : key.startsWith('ORBITAL_') ? 'orbital' : 'other';
+        const needsSep = lastGroup !== null && group !== lastGroup;
+        lastGroup = group;
+
         const item = document.createElement('div');
         item.style.cssText = `
             padding: 6px 12px; cursor: pointer; font-size: 12px;
             color: var(--text, #e0e0e8); display: flex; align-items: center; gap: 8px;
             transition: background 0.1s;
+            ${needsSep ? 'border-top: 1px solid var(--panel-border, #2a2a3e); margin-top: 2px; padding-top: 8px;' : ''}
         `;
         item.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${typeDef.colourHex};display:inline-block;"></span>${typeDef.label}`;
         item.addEventListener('mouseenter', () => { item.style.background = 'rgba(74,158,255,0.15)'; });
@@ -277,23 +294,6 @@ function _createAddMenu() {
         });
         _addMenuEl.appendChild(item);
     }
-
-    // Orbital relay
-    const orbItem = document.createElement('div');
-    orbItem.style.cssText = `
-        padding: 6px 12px; cursor: pointer; font-size: 12px;
-        color: var(--text, #e0e0e8); display: flex; align-items: center; gap: 8px;
-        border-top: 1px solid var(--panel-border, #2a2a3e); margin-top: 2px;
-        transition: background 0.1s;
-    `;
-    orbItem.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${NODE_TYPES.ORBITAL_RELAY.colourHex};display:inline-block;"></span>Orbital Relay`;
-    orbItem.addEventListener('mouseenter', () => { orbItem.style.background = 'rgba(74,158,255,0.15)'; });
-    orbItem.addEventListener('mouseleave', () => { orbItem.style.background = 'transparent'; });
-    orbItem.addEventListener('click', () => {
-        _addNodeAtPending('ORBITAL_RELAY');
-        _hideAddMenu();
-    });
-    _addMenuEl.appendChild(orbItem);
 
     document.body.appendChild(_addMenuEl);
 }
@@ -1228,6 +1228,14 @@ function setupDashboardBindings() {
             );
         });
     });
+
+    // Dashboard time slider
+    const dashSlider = document.getElementById('dash-time-slider');
+    if (dashSlider) {
+        dashSlider.addEventListener('input', () => {
+            setSimTime(parseFloat(dashSlider.value));
+        });
+    }
 }
 
 setupDashboardBindings();
