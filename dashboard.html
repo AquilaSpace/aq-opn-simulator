@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aquila — Optical Power Network</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+
+<!-- Full-screen viewport -->
+<canvas id="viewport"></canvas>
+
+<!-- HUD overlay -->
+<div id="hud">
+
+    <!-- Top-left: network stats -->
+    <div id="hud-left">
+        <div class="hud-logo-row">
+            <img src="brandmark-black-2000px.svg" class="hud-logo" alt="Aquila">
+            <span class="hud-title">AQUILA OPN</span>
+        </div>
+        <div class="hud-stats">
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="stat-sources">0</span>
+                <span class="hud-stat-label">POWER SOURCES</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="stat-relays">0</span>
+                <span class="hud-stat-label">RELAY SATELLITES</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="stat-customers">0</span>
+                <span class="hud-stat-label">CUSTOMERS</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-stat-value" id="stat-links-active">0</span>
+                <span class="hud-stat-label">ACTIVE LINKS</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top-right: revenue & power -->
+    <div id="hud-right">
+        <div class="hud-stat hud-stat-large">
+            <span class="hud-stat-value hud-accent" id="stat-power">0 W</span>
+            <span class="hud-stat-label">POWER DELIVERED</span>
+        </div>
+        <div class="hud-stat hud-stat-large">
+            <span class="hud-stat-value hud-revenue" id="stat-revenue">$0</span>
+            <span class="hud-stat-label">REVENUE GENERATED</span>
+        </div>
+        <div class="hud-stat">
+            <span class="hud-stat-value" id="stat-uptime">—</span>
+            <span class="hud-stat-label">NETWORK UPTIME</span>
+        </div>
+    </div>
+
+    <!-- Bottom-centre: action buttons -->
+    <div id="hud-actions">
+        <button class="hud-btn" id="btn-add-source" title="Deploy a new ground power source">
+            <span class="hud-btn-icon">⚡</span>
+            <span>Add Source</span>
+        </button>
+        <button class="hud-btn" id="btn-add-relay" title="Deploy a relay satellite">
+            <span class="hud-btn-icon">🛰</span>
+            <span>Add Relay</span>
+        </button>
+        <button class="hud-btn" id="btn-add-customer" title="Add a customer receiver">
+            <span class="hud-btn-icon">📡</span>
+            <span>Add Customer</span>
+        </button>
+        <button class="hud-btn hud-btn-accent" id="btn-auto-connect" title="Auto-optimise all connections">
+            <span class="hud-btn-icon">🔗</span>
+            <span>Auto-Connect</span>
+        </button>
+        <div class="hud-sep"></div>
+        <button class="hud-btn hud-btn-dim" id="btn-play" title="Play / Pause simulation">▶ Play</button>
+        <button class="hud-btn hud-btn-dim" id="btn-reset" title="Reset simulation time">Reset</button>
+        <div class="hud-sep"></div>
+        <a class="hud-btn hud-btn-dim" href="index.html" title="Open engineering view">Engineer View</a>
+    </div>
+
+    <!-- Bottom-left: epoch -->
+    <div id="hud-epoch">
+        <span id="epoch-display">2025-03-05 12:00:00 UTC</span>
+    </div>
+
+    <!-- Bottom-right: speed controls -->
+    <div id="hud-speed">
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="10">10×</button>
+        <button class="speed-btn" data-speed="100">100×</button>
+        <button class="speed-btn" data-speed="1000">1000×</button>
+    </div>
+
+</div>
+
+<script type="module" src="js/dashboard.js"></script>
+
+</body>
+</html>

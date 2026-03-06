@@ -1,0 +1,257 @@
+/* ============================================================
+   Aquila OPN Dashboard — Defence/Aerospace HUD theme
+   ============================================================ */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #050510;
+    --hud-bg: rgba(8, 12, 28, 0.85);
+    --hud-border: rgba(60, 120, 255, 0.2);
+    --text: #c8d0e0;
+    --text-dim: #606880;
+    --accent: #4a9eff;
+    --accent-bright: #00d4ff;
+    --green: #00ff66;
+    --amber: #ffaa00;
+    --red: #ff3344;
+    --revenue: #00ff88;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+#viewport {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block;
+}
+
+/* --- HUD overlay ------------------------------------------- */
+#hud {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#hud > * {
+    pointer-events: auto;
+}
+
+/* --- Top-left: logo + stats -------------------------------- */
+#hud-left {
+    position: absolute;
+    top: 16px;
+    left: 20px;
+}
+
+.hud-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.hud-logo {
+    height: 24px;
+    width: 24px;
+    filter: invert(1) brightness(0.8);
+    opacity: 0.7;
+}
+
+.hud-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+}
+
+.hud-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hud-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.hud-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 40px;
+}
+
+.hud-stat-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+/* --- Top-right: revenue & power ---------------------------- */
+#hud-right {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.hud-stat-large .hud-stat-value {
+    font-size: 28px;
+}
+
+.hud-accent {
+    color: var(--accent-bright) !important;
+}
+
+.hud-revenue {
+    color: var(--revenue) !important;
+}
+
+/* --- Bottom-centre: action buttons ------------------------- */
+#hud-actions {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--hud-bg);
+    border: 1px solid var(--hud-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.hud-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(74, 158, 255, 0.08);
+    border: 1px solid var(--hud-border);
+    color: var(--text);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.hud-btn:hover {
+    background: rgba(74, 158, 255, 0.18);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.hud-btn-icon {
+    font-size: 14px;
+}
+
+.hud-btn-accent {
+    background: rgba(74, 158, 255, 0.15);
+    border-color: var(--accent);
+    color: var(--accent-bright);
+}
+
+.hud-btn-accent:hover {
+    background: rgba(74, 158, 255, 0.3);
+}
+
+.hud-btn-dim {
+    color: var(--text-dim);
+    background: transparent;
+    border-color: rgba(60, 120, 255, 0.1);
+}
+
+.hud-btn-dim:hover {
+    color: var(--text);
+    border-color: var(--hud-border);
+}
+
+.hud-sep {
+    width: 1px;
+    height: 24px;
+    background: var(--hud-border);
+    margin: 0 4px;
+}
+
+/* --- Bottom-left: epoch ------------------------------------ */
+#hud-epoch {
+    position: absolute;
+    bottom: 72px;
+    left: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+}
+
+/* --- Bottom-right: speed ----------------------------------- */
+#hud-speed {
+    position: absolute;
+    bottom: 72px;
+    right: 20px;
+    display: flex;
+    gap: 4px;
+}
+
+.speed-btn {
+    background: transparent;
+    border: 1px solid rgba(60, 120, 255, 0.15);
+    color: var(--text-dim);
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    transition: all 0.15s;
+}
+
+.speed-btn:hover,
+.speed-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* --- Responsive: stack on small screens -------------------- */
+@media (max-width: 800px) {
+    #hud-actions {
+        flex-wrap: wrap;
+        max-width: 90vw;
+        justify-content: center;
+    }
+
+    .hud-stat-large .hud-stat-value {
+        font-size: 22px;
+    }
+}
