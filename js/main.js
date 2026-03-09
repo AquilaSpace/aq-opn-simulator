@@ -26,7 +26,7 @@ import {
 } from './linkManager.js';
 import { showLinkInspector } from './linkInspector.js';
 import { computeNetworkMetrics } from './networkGraph.js';
-import { initTimeController, updateTimeController, onTimeTick, isPlaying, setPlaying, setSpeed, resetTime, getSimTime, setSimTime } from './timeController.js';
+import { initTimeController, updateTimeController, onTimeTick, isPlaying, setPlaying, setSpeed, resetTime, getSimTime, setSimTime, isLooping, setLooping } from './timeController.js';
 import { initOrbitTrails } from './orbitalMechanics.js';
 import { getUptime, getUptimeString, resetUptime } from './uptimeTracker.js';
 import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
@@ -665,6 +665,17 @@ function setupUIBindings() {
         });
     }
 
+    // Revenue rate input
+    const revenueRateEl = document.getElementById('revenue-rate');
+    if (revenueRateEl) {
+        revenueRateEl.addEventListener('change', () => {
+            const val = parseFloat(revenueRateEl.value);
+            if (!isNaN(val) && val >= 0) {
+                _revenuePer15Min = val;
+            }
+        });
+    }
+
     // Header buttons: Import/Export/Screenshot
     const btnExport = document.getElementById('btn-export');
     if (btnExport) btnExport.addEventListener('click', downloadJSON);
@@ -934,10 +945,15 @@ function loadDemoScene() {
 // Dashboard view — shared state, auto-connect, revenue model
 // ---------------------------------------------------------------------------
 
-const REVENUE_PER_15MIN = 250;
+/** Revenue rate per powered customer per 15-minute interval (USD) */
+let _revenuePer15Min = 250;
 let _totalRevenue = 0;
 let _lastRevenueTick = 0;
 const REVENUE_INTERVAL_S = 900;
+
+/** Cumulative energy delivered in watt-seconds (J), converted to kWh for display */
+let _totalEnergy_Ws = 0;
+let _lastEnergyTime = 0;
 
 /** Switch between engineer and dashboard views */
 function switchView(view) {
@@ -1099,27 +1115,55 @@ function dashAddOrbitalCustomer() {
 }
 
 function _formatRevenue(amount) {
-    if (amount >= 1e6) return (amount / 1e6).toFixed(2) + 'M';
-    if (amount >= 1e3) return (amount / 1e3).toFixed(1) + 'K';
-    return amount.toFixed(0);
+    if (amount >= 1e6) return '$' + (amount / 1e6).toFixed(2) + 'M';
+    if (amount >= 1e3) return '$' + (amount / 1e3).toFixed(1) + 'K';
+    return '$' + amount.toFixed(0);
+}
+
+function _formatEnergy(joules) {
+    const kWh = joules / 3.6e6;
+    if (kWh >= 1e6) return (kWh / 1e6).toFixed(2) + ' GWh';
+    if (kWh >= 1e3) return (kWh / 1e3).toFixed(1) + ' MWh';
+    if (kWh >= 1) return kWh.toFixed(1) + ' kWh';
+    return (kWh * 1000).toFixed(0) + ' Wh';
 }
 
 function updateDashboardRevenue() {
     const links = getAllLinks();
     const poweredCustomers = new Set();
+    let totalPower_W = 0;
     for (const link of links) {
         if (link.status === 'ACTIVE' || link.status === 'MARGINAL') {
             const toNode = getNode(link.toId);
             if (toNode && (toNode.type === 'GROUND_CUSTOMER' || toNode.type === 'ORBITAL_CUSTOMER' || toNode.type === 'LUNAR_NODE')) {
                 poweredCustomers.add(link.toId);
             }
+            totalPower_W += (link.budget && link.budget.rxPower_W) || 0;
         }
     }
+
     const simTime = getSimTime();
+
+    // Accumulate energy (power × time)
+    // Cap per-call delta at 500 s to reject large jumps from slider scrubbing
+    // while still supporting 10000× speed (~167 s/frame at 60 fps).
+    if (simTime < _lastEnergyTime) {
+        _lastEnergyTime = simTime; // loop reset
+    }
+    const energyDt = simTime - _lastEnergyTime;
+    if (energyDt > 0 && energyDt <= 500) {
+        _totalEnergy_Ws += totalPower_W * energyDt;
+    }
+    _lastEnergyTime = simTime;
+
+    // Revenue ticks
+    if (simTime < _lastRevenueTick) {
+        _lastRevenueTick = 0;
+    }
     const elapsed = simTime - _lastRevenueTick;
     if (elapsed >= REVENUE_INTERVAL_S) {
         const intervals = Math.floor(elapsed / REVENUE_INTERVAL_S);
-        _totalRevenue += poweredCustomers.size * REVENUE_PER_15MIN * intervals;
+        _totalRevenue += poweredCustomers.size * _revenuePer15Min * intervals;
         _lastRevenueTick += intervals * REVENUE_INTERVAL_S;
     }
 }
@@ -1156,8 +1200,11 @@ function updateDashboardHUD() {
         : totalPower_W.toFixed(1) + ' W';
     if (el('dash-stat-power')) el('dash-stat-power').textContent = powerStr;
 
+    // Cumulative energy
+    if (el('dash-stat-energy')) el('dash-stat-energy').textContent = _formatEnergy(_totalEnergy_Ws);
+
     // Revenue
-    if (el('dash-stat-revenue')) el('dash-stat-revenue').textContent = '$' + _formatRevenue(_totalRevenue);
+    if (el('dash-stat-revenue')) el('dash-stat-revenue').textContent = _formatRevenue(_totalRevenue);
 
     // Uptime
     const customerNodes = nodes.filter(n =>
@@ -1210,10 +1257,16 @@ function setupDashboardBindings() {
         if (btn) btn.textContent = isPlaying() ? '⏸ Pause' : '▶ Play';
     });
 
+    bind('dash-btn-loop', () => {
+        setLooping(!isLooping());
+    });
+
     bind('dash-btn-reset', () => {
         resetTime();
         _totalRevenue = 0;
         _lastRevenueTick = 0;
+        _totalEnergy_Ws = 0;
+        _lastEnergyTime = 0;
         resetUptime();
         updateDashboardHUD();
     });

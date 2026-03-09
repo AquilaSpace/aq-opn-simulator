@@ -22,6 +22,12 @@ let _simTime = 0;
 /** Whether simulation is playing */
 let _playing = false;
 
+/** Whether looping is enabled */
+let _looping = false;
+
+/** Loop endpoint in seconds — simTime resets to 0 when this is reached */
+let _loopEnd = 86400;
+
 /** Speed multiplier */
 let _speedMultiplier = 1;
 
@@ -73,6 +79,23 @@ export function setPlaying(playing) {
     if (btn) btn.textContent = _playing ? '⏸' : '▶';
 }
 
+export function isLooping() { return _looping; }
+export function setLooping(looping) {
+    _looping = looping;
+    // Capture current position as loop endpoint (minimum one day)
+    if (_looping) {
+        _loopEnd = Math.max(86400, _simTime);
+    }
+    // Update UI
+    const btn = document.getElementById('time-loop');
+    if (btn) btn.classList.toggle('active', _looping);
+    const dashBtn = document.getElementById('dash-btn-loop');
+    if (dashBtn) {
+        dashBtn.classList.toggle('active', _looping);
+        dashBtn.textContent = _looping ? '🔁 Loop' : '🔁 Loop';
+    }
+}
+
 export function setSpeed(multiplier) {
     _speedMultiplier = multiplier;
     document.querySelectorAll('#timebar .speed-buttons button').forEach(btn => {
@@ -100,6 +123,11 @@ export function updateTimeController(dt) {
     if (!_playing) return;
 
     _simTime += dt * _speedMultiplier;
+
+    // Loop check — reset to 0 when loop endpoint is reached
+    if (_looping && _simTime >= _loopEnd) {
+        _simTime = 0;
+    }
 
     // Propagate orbital positions every frame for smooth movement
     _propagatePositions();
@@ -179,6 +207,12 @@ function _setupUI() {
     const resetBtn = document.getElementById('time-reset');
     if (resetBtn) {
         resetBtn.addEventListener('click', resetTime);
+    }
+
+    // Loop toggle
+    const loopBtn = document.getElementById('time-loop');
+    if (loopBtn) {
+        loopBtn.addEventListener('click', () => setLooping(!_looping));
     }
 
     // Step forward (advance by 60 seconds × speed multiplier)

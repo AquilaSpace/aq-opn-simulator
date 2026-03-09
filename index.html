@@ -124,6 +124,18 @@
             </div>
         </div>
 
+        <!-- Revenue Model -->
+        <div class="panel" id="panel-revenue">
+            <div class="panel-header">Revenue Model</div>
+            <div class="panel-body">
+                <div class="control-row" id="revenue-rate-row">
+                    <label for="revenue-rate">Rate per customer</label>
+                    <input type="number" id="revenue-rate" value="250" min="0" max="100000" step="10">
+                    <span style="font-size: 10px; color: var(--text-dim);">$/15 min</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Camera -->
         <div class="panel" id="panel-camera">
             <div class="panel-header">Camera</div>
@@ -236,13 +248,17 @@
             <span class="hud-stat-value hud-accent" id="dash-stat-power">0 W</span>
             <span class="hud-stat-label">POWER DELIVERED</span>
         </div>
+        <div class="hud-stat hud-stat-large" id="dash-stat-energy-item">
+            <span class="hud-stat-value hud-accent" id="dash-stat-energy">0 Wh</span>
+            <span class="hud-stat-label">CUMULATIVE ENERGY</span>
+        </div>
         <div class="hud-stat hud-stat-large" id="dash-stat-revenue-item">
             <span class="hud-stat-value hud-revenue" id="dash-stat-revenue">$0</span>
             <span class="hud-stat-label">REVENUE GENERATED</span>
         </div>
         <div class="hud-stat" id="dash-stat-uptime-item">
             <span class="hud-stat-value" id="dash-stat-uptime">&mdash;</span>
-            <span class="hud-stat-label">NETWORK UPTIME</span>
+            <span class="hud-stat-label">DELIVERY AVAILABILITY</span>
         </div>
     </div>
 
@@ -270,6 +286,7 @@
         </button>
         <div class="hud-sep"></div>
         <button class="hud-btn hud-btn-dim" id="dash-btn-play" title="Play / Pause simulation">&#9654; Play</button>
+        <button class="hud-btn hud-btn-dim" id="dash-btn-loop" title="Loop playback">&#128257; Loop</button>
         <button class="hud-btn hud-btn-dim" id="dash-btn-reset" title="Reset simulation time">Reset</button>
         <div class="hud-sep"></div>
         <button class="hud-btn hud-btn-dim" id="dash-btn-engineer" title="Switch to engineering view">Engineer View</button>
@@ -297,6 +314,7 @@
         <button id="time-reset" title="Reset to epoch">⏮</button>
         <button id="time-play" title="Play / Pause">▶</button>
         <button id="time-step" title="Step forward">⏭</button>
+        <button id="time-loop" title="Loop playback">🔁</button>
     </div>
     <input type="range" class="time-slider" id="time-slider" min="0" max="86400" value="0">
     <div class="speed-buttons">

@@ -113,10 +113,12 @@ export const TOOLTIPS = {
         'Laser power links currently transmitting with sufficient margin above the receiver\'s required power.',
     'dash-stat-power-item':
         'Total optical power arriving at all receiver apertures across active and marginal links.',
+    'dash-stat-energy-item':
+        'Total energy delivered to all customers since simulation start. Accumulated from instantaneous power over time.',
     'dash-stat-revenue-item':
-        'Cumulative revenue at $250 per customer per 15 minutes of continuous power access.',
+        'Cumulative revenue based on the configured rate per powered customer per 15-minute interval. Adjust the rate in the Engineer view Revenue Model panel.',
     'dash-stat-uptime-item':
-        'Average percentage of simulation time each customer has received sufficient power from the network.',
+        'Average percentage of simulation time each customer has received sufficient power. Higher values indicate more reliable power delivery.',
 
     // -- Engineer View — Network Overview stats (on wrapper .stat-item) --
     'stat-nodes-item':
