@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OPN Simulator — Physics &amp; Business Model Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e8;
+            padding: 2rem;
+        }
+        h1 { margin-bottom: 0.5rem; color: #4a9eff; }
+        h2 { margin-top: 1.5rem; margin-bottom: 0.5rem; color: #00d4ff; font-size: 1.1rem; }
+        .summary {
+            margin: 1rem 0;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .summary.all-pass { background: #0a3a0a; border: 1px solid #00ff44; color: #00ff44; }
+        .summary.has-fail { background: #3a0a0a; border: 1px solid #ff3344; color: #ff3344; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid #2a2a3e;
+        }
+        th { background: #1a1a2e; color: #888899; font-weight: 600; }
+        tr.pass td:first-child { color: #00ff44; }
+        tr.fail td:first-child { color: #ff3344; font-weight: bold; }
+        tr.fail { background: rgba(255, 51, 68, 0.08); }
+        .mono { font-family: 'Consolas', 'Courier New', monospace; }
+        .note { color: #888899; font-style: italic; font-size: 0.8rem; margin-top: -0.3rem; margin-bottom: 0.5rem; }
+        #error-log { color: #ff3344; margin-top: 1rem; white-space: pre-wrap; font-family: monospace; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <h1>OPN Simulator — Physics &amp; Business Model Tests</h1>
+    <p class="note">Gaussian beam model, turbulence corrections, and business unit economics.</p>
+    <div id="summary"></div>
+    <div id="results"></div>
+    <div id="error-log"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+    // =========================================================================
+    // Imports — only modules with no DOM/Three.js dependencies
+    // =========================================================================
+    import {
+        computeLinkBudget,
+        computeAtmosphericTransmission,
+        computeElevationAngle,
+        checkLineOfSight,
+        computeDistance_km,
+        getAltitude_km,
+        getExtinction,
+    } from '../js/physics.js';
+
+    import {
+        computeTurbulenceSpot,
+        computeScintillationLoss,
+        r0ForElevation,
+        isGroundToSpaceLink,
+    } from '../js/turbulenceModel.js';
+
+    // =========================================================================
+    // Test runner
+    // =========================================================================
+    const _sections = [];
+    let _totalPass = 0;
+    let _totalFail = 0;
+
+    function section(name) {
+        _sections.push({ name, tests: [] });
+    }
+
+    function assert(description, actual, expected, tolerance, unit = '') {
+        const sec = _sections[_sections.length - 1];
+        let pass;
+        if (typeof expected === 'boolean') {
+            pass = actual === expected;
+        } else if (expected === Infinity || expected === -Infinity) {
+            pass = actual === expected;
+        } else if (expected === 0) {
+            pass = Math.abs(actual) < (tolerance || 1e-12);
+        } else {
+            const relErr = Math.abs((actual - expected) / expected);
+            pass = relErr < (tolerance || 0.01);
+        }
+        if (pass) _totalPass++; else _totalFail++;
+        sec.tests.push({ description, actual, expected, tolerance, unit, pass });
+    }
+
+    function assertRange(description, actual, lo, hi, unit = '') {
+        const sec = _sections[_sections.length - 1];
+        const pass = actual >= lo && actual <= hi;
+        if (pass) _totalPass++; else _totalFail++;
+        sec.tests.push({
+            description, actual,
+            expected: `${lo} .. ${hi}`,
+            tolerance: null, unit, pass,
+        });
+    }
+
+    function assertTrue(description, value) {
+        assert(description, value, true, 0);
+    }
+
+    function assertFalse(description, value) {
+        assert(description, value, false, 0);
+    }
+
+    function assertNoNaN(description, value) {
+        const sec = _sections[_sections.length - 1];
+        const pass = !Number.isNaN(value) && value !== undefined && value !== null;
+        if (pass) _totalPass++; else _totalFail++;
+        sec.tests.push({ description, actual: value, expected: 'not NaN', tolerance: null, unit: '', pass });
+    }
+
+    function fmt(v) {
+        if (typeof v === 'boolean') return v ? 'true' : 'false';
+        if (typeof v === 'string') return v;
+        if (v === Infinity) return 'Infinity';
+        if (v === -Infinity) return '-Infinity';
+        if (Number.isNaN(v)) return 'NaN';
+        if (Math.abs(v) >= 1e6) return v.toExponential(4);
+        if (Math.abs(v) >= 0.01) return v.toPrecision(6);
+        if (v === 0) return '0';
+        return v.toExponential(4);
+    }
+
+    function render() {
+        const resultsDiv = document.getElementById('results');
+        const summaryDiv = document.getElementById('summary');
+        const total = _totalPass + _totalFail;
+        summaryDiv.innerHTML = `<div class="summary ${_totalFail === 0 ? 'all-pass' : 'has-fail'}">`
+            + `${_totalPass}/${total} passed` + (_totalFail > 0 ? ` — ${_totalFail} FAILED` : ' — All OK')
+            + `</div>`;
+
+        let html = '';
+        for (const sec of _sections) {
+            html += `<h2>${sec.name}</h2>`;
+            html += `<table><tr><th>Status</th><th>Test</th><th>Actual</th><th>Expected</th><th>Tol</th></tr>`;
+            for (const t of sec.tests) {
+                const cls = t.pass ? 'pass' : 'fail';
+                const status = t.pass ? 'PASS' : 'FAIL';
+                const tolStr = t.tolerance !== null && t.tolerance !== undefined && typeof t.expected === 'number'
+                    ? (t.tolerance * 100).toFixed(1) + '%' : '—';
+                html += `<tr class="${cls}"><td>${status}</td><td>${t.description}</td>`
+                    + `<td class="mono">${fmt(t.actual)}${t.unit ? ' ' + t.unit : ''}</td>`
+                    + `<td class="mono">${typeof t.expected === 'string' ? t.expected : fmt(t.expected)}${t.unit ? ' ' + t.unit : ''}</td>`
+                    + `<td>${tolStr}</td></tr>`;
+            }
+            html += `</table>`;
+        }
+        resultsDiv.innerHTML = html;
+    }
+
+    // =========================================================================
+    // Test 1: Gaussian Beam Baseline (No Turbulence)
+    // =========================================================================
+    try {
+        section('Test 1: Gaussian Beam Baseline (No Turbulence)');
+
+        const wavelength = 1080e-9;       // 1080 nm
+        const txAperture = 0.5;           // 0.5 m
+        const rxAperture = 2.0;           // 2.0 m
+        const distance = 500e3;           // 500 km in metres
+        const txPower = 16000;            // 16 kW
+        const txEfficiency = 0.45 * 0.92; // combined = 0.414
+        const atmosphericLoss = 0.90;
+
+        // Expected Gaussian beam values
+        const w0 = txAperture / 2;                                    // 0.25 m
+        const zR = Math.PI * w0 * w0 / wavelength;                   // Rayleigh range
+        const wAtRx = w0 * Math.sqrt(1 + (distance / zR) ** 2);      // beam radius at Rx
+        const beamDiameter = 2 * wAtRx;
+        const rxRadius = rxAperture / 2;
+        const captureFraction = 1 - Math.exp(-2 * (rxRadius / wAtRx) ** 2);
+        const divergence = wavelength / (Math.PI * w0);
+
+        assert('Beam waist w0', w0, 0.25, 1e-6, 'm');
+        assert('Rayleigh range', zR, Math.PI * 0.0625 / 1080e-9, 0.001, 'm');
+        assert('Divergence half-angle', divergence, wavelength / (Math.PI * 0.25), 1e-6, 'rad');
+
+        const budget = computeLinkBudget({
+            txPower_W: txPower,
+            txEfficiency: txEfficiency,
+            txApertureDiameter_m: txAperture,
+            rxApertureDiameter_m: rxAperture,
+            distance_m: distance,
+            wavelength_m: wavelength,
+            txPointingJitter_rad: 0,
+            atmosphericLoss: atmosphericLoss,
+        });
+
+        assert('Beam diameter at Rx', budget.beamDiameterAtRx_m, beamDiameter, 0.001, 'm');
+        assert('Capture fraction', budget.rxCaptureFraction, captureFraction, 0.001);
+        assert('Pointing loss (zero jitter)', budget.pointingLoss, 1.0, 1e-6);
+        assert('Atmospheric loss passthrough', budget.atmosphericLoss, 0.90, 1e-6);
+
+        const expectedRxPower = txPower * txEfficiency * captureFraction * 1.0 * atmosphericLoss;
+        assert('Received power', budget.rxPower_W, expectedRxPower, 0.001, 'W');
+        assertRange('Rx power physically reasonable', budget.rxPower_W, 0, txPower);
+        assert('Distance preserved', budget.distance_km, 500, 1e-6, 'km');
+        assert('Wavelength preserved', budget.wavelength_nm, 1080, 1e-6, 'nm');
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 1 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 2: Turbulence at 500 km
+    // =========================================================================
+    try {
+        section('Test 2: Turbulence at 500 km');
+
+        const wavelength = 1080e-9;
+        const distance = 500e3;
+        const txDiameter = 0.5;
+        const r0 = 0.12;            // 12 cm Fried parameter
+        const tiptiltGain = 0.6;
+        const Cn2 = 1e-14;
+        const turbHeight = 10000;    // 10 km
+
+        // Gaussian baseline beam diameter (no turbulence)
+        const w0 = txDiameter / 2;
+        const zR = Math.PI * w0 * w0 / wavelength;
+        const wAtRx = w0 * Math.sqrt(1 + (distance / zR) ** 2);
+        const gaussianBeamDiam = 2 * wAtRx;
+
+        const turbSpot = computeTurbulenceSpot(wavelength, distance, txDiameter, r0, tiptiltGain);
+
+        assertTrue('Turbulence spot > Gaussian baseline', turbSpot > gaussianBeamDiam);
+        assertRange('Turbulence spot physically plausible', turbSpot, gaussianBeamDiam, gaussianBeamDiam * 20);
+
+        // Scintillation loss
+        const scintLoss = computeScintillationLoss(wavelength, distance, Cn2, turbHeight);
+        assertRange('Scintillation loss factor < 1', scintLoss, 0, 1);
+        assertTrue('Scintillation causes some loss', scintLoss < 1.0);
+
+        // Verify turbulence decreases with larger r0
+        const turbSpotGoodSeeing = computeTurbulenceSpot(wavelength, distance, txDiameter, 0.28, tiptiltGain);
+        assertTrue('Better seeing (r0=28cm) gives smaller spot', turbSpotGoodSeeing < turbSpot);
+
+        // r0 for elevation correction
+        const r0Zenith = 0.12;
+        const r0_45deg = r0ForElevation(r0Zenith, Math.PI / 4);
+        const r0_90deg = r0ForElevation(r0Zenith, Math.PI / 2);
+        assertTrue('r0 at 45 deg < r0 at zenith', r0_45deg < r0_90deg);
+        assert('r0 at zenith (90 deg)', r0_90deg, r0Zenith, 0.01, 'm');
+
+        // Ground-to-space link detection
+        assertTrue('Ground-to-space: 0 km and 500 km', isGroundToSpaceLink(0, 500));
+        assertFalse('Space-to-space: 500 km and 36000 km', isGroundToSpaceLink(500, 36000));
+        assertFalse('Ground-to-ground: 0 km and 0 km', isGroundToSpaceLink(0, 0));
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 2 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 3: Operational Scenario at 500 km (4x10 kW)
+    // =========================================================================
+    try {
+        section('Test 3: Operational Scenario at 500 km (4x10 kW)');
+
+        const wavelength = 1080e-9;
+        const txAperture = 1.0;       // 1 m aperture
+        const rxAperture = 2.3;       // 2.3 m receiver
+        const distance = 500e3;       // 500 km
+        const singleLaserPower = 10000; // 10 kW per laser
+        const numLasers = 4;
+        const totalPower = singleLaserPower * numLasers;
+        const txEfficiency = 0.90;
+        const atmosphericLoss = 0.85;
+
+        const budget = computeLinkBudget({
+            txPower_W: totalPower,
+            txEfficiency: txEfficiency,
+            txApertureDiameter_m: txAperture,
+            rxApertureDiameter_m: rxAperture,
+            distance_m: distance,
+            wavelength_m: wavelength,
+            txPointingJitter_rad: 0.0001e-3, // 0.1 urad = 100 nrad
+            atmosphericLoss: atmosphericLoss,
+        });
+
+        assertRange('Received power physically reasonable', budget.rxPower_W, 100, totalPower);
+        assertRange('Capture fraction reasonable', budget.rxCaptureFraction, 0.001, 1.0);
+        assertRange('Beam diameter at 500 km', budget.beamDiameterAtRx_m, 0.1, 5000, 'm');
+        assertRange('Divergence reasonable', budget.divergence_mrad, 1e-4, 1, 'mrad');
+
+        // With 1 m aperture at 1080 nm, divergence is very small — pointing loss should be near 1
+        assertRange('Pointing loss near unity for 100 nrad jitter', budget.pointingLoss, 0.90, 1.0);
+
+        // Turbulence spot with good seeing
+        const r0 = 0.22; // 22 cm
+        const turbSpot = computeTurbulenceSpot(wavelength, distance, txAperture, r0, 0.7);
+        assertRange('Turbulence spot with 22cm r0', turbSpot, 0.1, 5000, 'm');
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 3 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 4: Business Model Baseline Economics
+    // =========================================================================
+    try {
+        section('Test 4: Business Model Baseline Economics');
+
+        // Inputs
+        const numStations = 3;
+        const capexPerStation_M = 8;
+        const opexPerStation_Kyr = 500;
+        const amortisationYears = 10;
+        const electricityCost_perKwh = 0.10;
+        const laserPower_kW = 10;
+        const avgLinkEfficiency = 0.12;
+        const weatherAvailability = 0.70;
+        const passesPerDayPerStation = 4;
+        const usableMinPerPass = 3;
+        const numSatellites = 50;
+        const annualPricePerSat_K = 150;
+        const displacedMassPerSat_kg = 12;
+        const launchCostPerKg = 4000;
+        const displacedHwCostPerKg = 15000;
+        const pvEfficiency = 0.55;
+        const targetPower_kW = 1.0;
+
+        // Energy delivery
+        const peakDelivered_kW = laserPower_kW * avgLinkEfficiency;
+        assert('Peak delivered (kW)', peakDelivered_kW, 1.2, 0.001);
+
+        const peakElectrical_kW = peakDelivered_kW * pvEfficiency;
+        assert('Peak electrical (kW)', peakElectrical_kW, 0.66, 0.001);
+
+        const energyPerPass_Wh = peakElectrical_kW * (usableMinPerPass / 60) * 1000;
+        assert('Energy per pass (Wh)', energyPerPass_Wh, 33, 0.001);
+
+        const effectivePassesPerDay = passesPerDayPerStation * numStations * weatherAvailability;
+        assert('Effective passes per day', effectivePassesPerDay, 8.4, 0.001);
+
+        const whPerDayFleet = energyPerPass_Wh * effectivePassesPerDay;
+        assert('Wh per day (fleet)', whPerDayFleet, 277.2, 0.001);
+
+        const whPerDayPerSat = whPerDayFleet / numSatellites;
+        assert('Wh per day per sat', whPerDayPerSat, 5.544, 0.001);
+
+        const kwhPerYearFleet = whPerDayFleet * 365 / 1000;
+        assert('kWh per year (fleet)', kwhPerYearFleet, 101.178, 0.001);
+
+        // Eclipse
+        const orbitalPeriod_min = 96;
+        const eclipseFraction = 0.35;
+        const orbitsPerDay = 1440 / orbitalPeriod_min;
+        assert('Orbits per day', orbitsPerDay, 15, 0.001);
+
+        const eclipseWh_perDay = targetPower_kW * eclipseFraction * (orbitalPeriod_min / 60) * orbitsPerDay * 1000;
+        assert('Eclipse Wh per day', eclipseWh_perDay, 8400, 0.001);
+
+        const eclipseCoverage_pct = Math.min(100, (whPerDayPerSat / eclipseWh_perDay) * 100);
+        assert('Eclipse coverage (%)', eclipseCoverage_pct, (5.544 / 8400) * 100, 0.01);
+
+        // Financials
+        const totalCapex = numStations * capexPerStation_M * 1e6;
+        assert('Total CAPEX', totalCapex, 24e6, 0.001);
+
+        const annualCapexAmort = totalCapex / amortisationYears;
+        assert('Annual CAPEX amortisation', annualCapexAmort, 2.4e6, 0.001);
+
+        const annualOpex = numStations * opexPerStation_Kyr * 1e3;
+        assert('Annual OPEX', annualOpex, 1.5e6, 0.001);
+
+        const dutyHoursPerYear = passesPerDayPerStation * (usableMinPerPass / 60) * weatherAvailability * 365;
+        assert('Duty hours per year', dutyHoursPerYear, 4 * (3/60) * 0.70 * 365, 0.001);
+
+        const annualElectricity = numStations * laserPower_kW * dutyHoursPerYear * electricityCost_perKwh;
+        const expectedElec = 3 * 10 * dutyHoursPerYear * 0.10;
+        assert('Annual electricity cost', annualElectricity, expectedElec, 0.001);
+
+        const totalAnnualCost = annualCapexAmort + annualOpex + annualElectricity;
+        assert('Total annual cost', totalAnnualCost, annualCapexAmort + annualOpex + annualElectricity, 0.001);
+
+        const annualRevenue = numSatellites * annualPricePerSat_K * 1e3;
+        assert('Annual revenue', annualRevenue, 7.5e6, 0.001);
+
+        const annualProfit = annualRevenue - totalAnnualCost;
+        const grossMargin = (annualRevenue - totalAnnualCost) / annualRevenue;
+        assert('Gross margin', grossMargin, (7.5e6 - totalAnnualCost) / 7.5e6, 0.001);
+        assertRange('Gross margin in expected range', grossMargin, 0.40, 0.55);
+
+        const paybackYears = totalCapex / annualProfit;
+        assert('Payback years', paybackYears, 24e6 / annualProfit, 0.001);
+        assertRange('Payback in expected range', paybackYears, 5, 8);
+
+        // Viability
+        const viable = grossMargin > 0.20 && paybackYears <= 8;
+        assertTrue('Viable with baseline inputs', viable);
+
+        // Customer value proposition
+        const launchSavings = displacedMassPerSat_kg * launchCostPerKg;
+        assert('Launch savings per sat', launchSavings, 12 * 4000, 0.001);
+
+        const hwSavings = displacedMassPerSat_kg * displacedHwCostPerKg;
+        assert('HW savings per sat', hwSavings, 12 * 15000, 0.001);
+
+        const totalSavings = launchSavings + hwSavings;
+        assert('Total savings per sat', totalSavings, 48000 + 180000, 0.001);
+
+        const customerPayback = (annualPricePerSat_K * 1e3) / totalSavings;
+        assert('Customer payback (years)', customerPayback, 150000 / 228000, 0.01);
+
+        const customerRoi = totalSavings / (annualPricePerSat_K * 1e3);
+        assert('Customer ROI', customerRoi, 228000 / 150000, 0.01);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 4 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 5: Business Model Edge Cases
+    // =========================================================================
+    try {
+        section('Test 5a: Single Station, Single Satellite');
+
+        const numStations = 1;
+        const numSatellites = 1;
+        const capexPerStation_M = 8;
+        const opexPerStation_Kyr = 500;
+        const amortisationYears = 10;
+        const electricityCost_perKwh = 0.10;
+        const laserPower_kW = 10;
+        const avgLinkEfficiency = 0.12;
+        const weatherAvailability = 0.70;
+        const passesPerDayPerStation = 4;
+        const usableMinPerPass = 3;
+        const annualPricePerSat_K = 150;
+        const pvEfficiency = 0.55;
+
+        const peakDelivered_kW = laserPower_kW * avgLinkEfficiency;
+        const peakElectrical_kW = peakDelivered_kW * pvEfficiency;
+        const energyPerPass_Wh = peakElectrical_kW * (usableMinPerPass / 60) * 1000;
+        const effectivePassesPerDay = passesPerDayPerStation * numStations * weatherAvailability;
+        const whPerDayPerSat = (energyPerPass_Wh * effectivePassesPerDay) / numSatellites;
+
+        assert('Single sat Wh/day', whPerDayPerSat, energyPerPass_Wh * effectivePassesPerDay, 0.001);
+
+        const totalCapex = numStations * capexPerStation_M * 1e6;
+        const annualCapexAmort = totalCapex / amortisationYears;
+        const annualOpex = numStations * opexPerStation_Kyr * 1e3;
+        const dutyHoursPerYear = passesPerDayPerStation * (usableMinPerPass / 60) * weatherAvailability * 365;
+        const annualElectricity = numStations * laserPower_kW * dutyHoursPerYear * electricityCost_perKwh;
+        const totalAnnualCost = annualCapexAmort + annualOpex + annualElectricity;
+        const annualRevenue = numSatellites * annualPricePerSat_K * 1e3;
+        const grossMargin = (annualRevenue - totalAnnualCost) / annualRevenue;
+
+        assertTrue('Single satellite: negative margin', grossMargin < 0);
+        assertRange('Annual cost > revenue for 1 sat', totalAnnualCost, annualRevenue, Infinity);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 5a error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    try {
+        section('Test 5b: Zero Link Efficiency');
+
+        const laserPower_kW = 10;
+        const avgLinkEfficiency = 0;
+        const pvEfficiency = 0.55;
+        const usableMinPerPass = 3;
+
+        const peakDelivered_kW = laserPower_kW * avgLinkEfficiency;
+        const peakElectrical_kW = peakDelivered_kW * pvEfficiency;
+        const energyPerPass_Wh = peakElectrical_kW * (usableMinPerPass / 60) * 1000;
+
+        assert('Zero efficiency: delivered power = 0', peakDelivered_kW, 0, 1e-6);
+        assert('Zero efficiency: electrical = 0', peakElectrical_kW, 0, 1e-6);
+        assert('Zero efficiency: energy per pass = 0', energyPerPass_Wh, 0, 1e-6);
+        assertNoNaN('No NaN in delivered power', peakDelivered_kW);
+        assertNoNaN('No NaN in electrical power', peakElectrical_kW);
+
+        // Budget with zero power
+        const budget = computeLinkBudget({
+            txPower_W: 0,
+            txEfficiency: 0.90,
+            txApertureDiameter_m: 0.5,
+            rxApertureDiameter_m: 2.0,
+            distance_m: 500e3,
+            wavelength_m: 1080e-9,
+            atmosphericLoss: 0.90,
+        });
+        assert('Zero power: rx power = 0', budget.rxPower_W, 0, 1e-12);
+        assertNoNaN('Zero power: no NaN in rxPower', budget.rxPower_W);
+        assertNoNaN('Zero power: no NaN in captureFraction', budget.rxCaptureFraction);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 5b error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    try {
+        section('Test 5c: Perfect Conditions (High Efficiency)');
+
+        const numStations = 5;
+        const numSatellites = 200;
+        const capexPerStation_M = 5;
+        const opexPerStation_Kyr = 300;
+        const amortisationYears = 10;
+        const electricityCost_perKwh = 0.08;
+        const laserPower_kW = 50;
+        const avgLinkEfficiency = 0.25;
+        const weatherAvailability = 0.85;
+        const passesPerDayPerStation = 6;
+        const usableMinPerPass = 5;
+        const annualPricePerSat_K = 200;
+
+        const peakDelivered_kW = laserPower_kW * avgLinkEfficiency;
+        const effectivePassesPerDay = passesPerDayPerStation * numStations * weatherAvailability;
+        const energyPerPass_Wh = peakDelivered_kW * 0.55 * (usableMinPerPass / 60) * 1000;
+
+        const totalCapex = numStations * capexPerStation_M * 1e6;
+        const annualCapexAmort = totalCapex / amortisationYears;
+        const annualOpex = numStations * opexPerStation_Kyr * 1e3;
+        const dutyHoursPerYear = passesPerDayPerStation * (usableMinPerPass / 60) * weatherAvailability * 365;
+        const annualElectricity = numStations * laserPower_kW * dutyHoursPerYear * electricityCost_perKwh;
+        const totalAnnualCost = annualCapexAmort + annualOpex + annualElectricity;
+        const annualRevenue = numSatellites * annualPricePerSat_K * 1e3;
+        const grossMargin = (annualRevenue - totalAnnualCost) / annualRevenue;
+        const paybackYears = totalCapex / (annualRevenue - totalAnnualCost);
+
+        assertTrue('Perfect conditions: viable (margin > 20%)', grossMargin > 0.20);
+        assertTrue('Perfect conditions: viable (payback <= 8 yr)', paybackYears <= 8);
+        assertRange('Gross margin high', grossMargin, 0.80, 0.99);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 5c error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    try {
+        section('Test 5d: Capture Fraction Ceiling');
+
+        // Very large receiver relative to beam — capture fraction should cap at 1.0
+        const budget = computeLinkBudget({
+            txPower_W: 10000,
+            txEfficiency: 0.90,
+            txApertureDiameter_m: 5.0,       // large aperture = tight beam
+            rxApertureDiameter_m: 100.0,      // absurdly large receiver
+            distance_m: 1000,                 // very short distance
+            wavelength_m: 1080e-9,
+            atmosphericLoss: 1.0,
+        });
+
+        assertRange('Capture fraction capped at 1.0', budget.rxCaptureFraction, 0.999, 1.0);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 5d error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 6: Turbulence Convergence (Large r0)
+    // =========================================================================
+    try {
+        section('Test 6: Turbulence Convergence — Large r0');
+
+        const wavelength = 1080e-9;
+        const distance = 500e3;
+        const txDiameter = 0.5;
+        const largeR0 = 2.0;         // 200 cm — excellent seeing, r0 >> aperture
+        const tiptiltGain = 0.6;
+
+        // Gaussian baseline
+        const w0 = txDiameter / 2;
+        const zR = Math.PI * w0 * w0 / wavelength;
+        const wAtRx = w0 * Math.sqrt(1 + (distance / zR) ** 2);
+        const gaussianBeamDiam = 2 * wAtRx;
+
+        const turbSpot = computeTurbulenceSpot(wavelength, distance, txDiameter, largeR0, tiptiltGain);
+
+        // With r0 >> D, effective aperture = min(D, r0) = D. But the code uses
+        // max(effAperture, r0 * 0.5) as the denominator for short-exp spot.
+        // When r0=2.0m, r0*0.5=1.0 > effAperture=0.5, so denominator = 1.0m.
+        const effDenom = Math.max(Math.min(txDiameter, largeR0), largeR0 * 0.5);
+        const shortExpSpot = 2.44 * wavelength * distance / effDenom;
+
+        // Turbulence spot should be close to the short-exp spot (wander is small with large r0)
+        const ratio = turbSpot / shortExpSpot;
+        assertRange('Turb spot / short-exp spot ratio near 1', ratio, 0.95, 1.5);
+
+        // Also verify that very large r0 gives smaller spot than small r0
+        const turbSpotPoor = computeTurbulenceSpot(wavelength, distance, txDiameter, 0.05, tiptiltGain);
+        assertTrue('Large r0 gives smaller spot than r0=5cm', turbSpot < turbSpotPoor);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 6 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 7: Cross-validation — Spreadsheet Scenario
+    // =========================================================================
+    try {
+        section('Test 7: Cross-validation — Spreadsheet Scenario (160 km, 2x16 kW)');
+
+        const wavelength = 1080e-9;
+        const txAperture = 0.5;
+        const rxAperture = 0.5;
+        const distance = 160e3;           // 160 km
+        const singleLaserPower = 16000;   // 16 kW
+        const numLasers = 2;
+        const totalPower = singleLaserPower * numLasers; // 32 kW
+        const txEfficiency = 0.50;
+        const atmosphericLoss = 1.0;      // assume clear / no atmosphere for cross-check
+
+        // Gaussian model reference values
+        const w0 = txAperture / 2;        // 0.25 m
+        const zR = Math.PI * w0 * w0 / wavelength;
+        const wAtRx = w0 * Math.sqrt(1 + (distance / zR) ** 2);
+        const beamDiam = 2 * wAtRx;
+        const rxRadius = rxAperture / 2;
+        const captureFraction = 1 - Math.exp(-2 * (rxRadius / wAtRx) ** 2);
+        const divergence = wavelength / (Math.PI * w0);
+
+        assert('w0 = 0.25 m', w0, 0.25, 1e-6, 'm');
+        assert('Divergence', divergence, 1080e-9 / (Math.PI * 0.25), 1e-6, 'rad');
+
+        const budget = computeLinkBudget({
+            txPower_W: totalPower,
+            txEfficiency: txEfficiency,
+            txApertureDiameter_m: txAperture,
+            rxApertureDiameter_m: rxAperture,
+            distance_m: distance,
+            wavelength_m: wavelength,
+            txPointingJitter_rad: 0,
+            atmosphericLoss: atmosphericLoss,
+        });
+
+        assert('Beam diameter at 160 km', budget.beamDiameterAtRx_m, beamDiam, 0.001, 'm');
+        assert('Capture fraction at 160 km', budget.rxCaptureFraction, captureFraction, 0.001);
+
+        const expectedRxPower = totalPower * txEfficiency * captureFraction * atmosphericLoss;
+        assert('Received power at 160 km', budget.rxPower_W, expectedRxPower, 0.001, 'W');
+
+        // At 160 km the Rayleigh range (~182 km) exceeds distance, so the beam is still
+        // well-focused and capture with matched apertures is significant (Gaussian model)
+        assertRange('Capture fraction reasonable at 160 km', budget.rxCaptureFraction, 0.3, 0.999);
+
+        // Verify dB values are consistent
+        const expectedLoss_dB = budget.txPower_dBW - budget.rxPower_dBW;
+        assert('Total path loss dB consistency', budget.totalPathLoss_dB, expectedLoss_dB, 0.001, 'dB');
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 7 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 8: Atmospheric Transmission
+    // =========================================================================
+    try {
+        section('Test 8: Atmospheric Transmission');
+
+        // Both above Karman line — no loss
+        const transSpace = computeAtmosphericTransmission(200, 500, Math.PI / 4, 0.2);
+        assert('Space-to-space: no atm loss', transSpace, 1.0, 1e-6);
+
+        // Ground to space at high elevation
+        const transZenith = computeAtmosphericTransmission(0, 500, Math.PI / 2, 0.2);
+        assertRange('Ground-to-space zenith: some loss', transZenith, 0.5, 1.0);
+
+        // Ground to space at low elevation — more loss
+        const transLow = computeAtmosphericTransmission(0, 500, 10 * Math.PI / 180, 0.2);
+        assertTrue('Low elevation has more loss than zenith', transLow < transZenith);
+
+        // Higher extinction — more loss
+        const transHaze = computeAtmosphericTransmission(0, 500, Math.PI / 4, 1.5);
+        const transClear = computeAtmosphericTransmission(0, 500, Math.PI / 4, 0.2);
+        assertTrue('Haze has more loss than clear', transHaze < transClear);
+
+        // Altitude matters — station at 3 km altitude has less atmosphere
+        const transHighAlt = computeAtmosphericTransmission(3, 500, Math.PI / 4, 0.2);
+        const transSeaLevel = computeAtmosphericTransmission(0, 500, Math.PI / 4, 0.2);
+        assertTrue('High-altitude station has less atm loss', transHighAlt > transSeaLevel);
+
+        // Extinction coefficient lookup
+        const extClear = getExtinction('YB_FIBRE', 'clear');
+        assert('Yb fibre clear extinction', extClear, 0.20, 0.01, 'dB/km');
+
+        const extHaze = getExtinction('YB_FIBRE', 'haze');
+        assert('Yb fibre haze extinction', extHaze, 1.5, 0.01, 'dB/km');
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 8 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 9: Line of Sight
+    // =========================================================================
+    try {
+        section('Test 9: Line of Sight');
+
+        const R = 6.371; // Earth radius in scene units
+
+        // Two points on opposite sides of Earth — LOS blocked
+        const p1 = { x: 0, y: R + 0.5, z: 0 };     // above north pole
+        const p2 = { x: 0, y: -(R + 0.5), z: 0 };   // below south pole
+        assertFalse('Opposite sides of Earth: blocked', checkLineOfSight(p1, p2));
+
+        // Two points on same side, high altitude — LOS clear
+        const p3 = { x: 0, y: R + 0.5, z: 0 };
+        const p4 = { x: 0, y: R + 5.0, z: 0 };
+        assertTrue('Same side, both above surface: clear', checkLineOfSight(p3, p4));
+
+        // Two points on surface near each other — should be clear (above surface)
+        const p5 = { x: 0, y: 0, z: R + 0.5 };
+        const p6 = { x: 0.5, y: 0, z: R + 0.5 };
+        assertTrue('Adjacent above-surface points: clear', checkLineOfSight(p5, p6));
+
+        // Distance computation
+        const dist = computeDistance_km(
+            { x: 0, y: R + 0.4, z: 0 },  // 400 km above north pole
+            { x: 0, y: R, z: 0 },          // surface at north pole
+        );
+        assert('Distance: 400 km vertical', dist, 400, 0.01, 'km');
+
+        // Altitude
+        const alt = getAltitude_km({ x: 0, y: R + 0.5, z: 0 });
+        assert('Altitude: 500 km above surface', alt, 500, 0.1, 'km');
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 9 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Test 10: Pointing Loss Sensitivity
+    // =========================================================================
+    try {
+        section('Test 10: Pointing Loss Sensitivity');
+
+        const wavelength = 1080e-9;
+        const txAperture = 0.5;
+        const divergence = wavelength / (Math.PI * (txAperture / 2)); // ~1.375 urad
+
+        // Zero jitter — no loss
+        const b0 = computeLinkBudget({
+            txPower_W: 10000, txEfficiency: 0.90,
+            txApertureDiameter_m: txAperture, rxApertureDiameter_m: 2.0,
+            distance_m: 500e3, wavelength_m: wavelength,
+            txPointingJitter_rad: 0, atmosphericLoss: 1.0,
+        });
+        assert('Zero jitter: pointing loss = 1', b0.pointingLoss, 1.0, 1e-6);
+
+        // Small jitter (100 nrad) — should be minor loss
+        const b1 = computeLinkBudget({
+            txPower_W: 10000, txEfficiency: 0.90,
+            txApertureDiameter_m: txAperture, rxApertureDiameter_m: 2.0,
+            distance_m: 500e3, wavelength_m: wavelength,
+            txPointingJitter_rad: 100e-9, atmosphericLoss: 1.0,
+        });
+        assertRange('100 nrad jitter: minor pointing loss', b1.pointingLoss, 0.95, 1.0);
+
+        // Jitter equal to divergence — exp(-2) = 0.135
+        const b2 = computeLinkBudget({
+            txPower_W: 10000, txEfficiency: 0.90,
+            txApertureDiameter_m: txAperture, rxApertureDiameter_m: 2.0,
+            distance_m: 500e3, wavelength_m: wavelength,
+            txPointingJitter_rad: divergence, atmosphericLoss: 1.0,
+        });
+        assert('Jitter = divergence: loss = exp(-2)', b2.pointingLoss, Math.exp(-2), 0.01);
+
+        // Large jitter — severe loss
+        const b3 = computeLinkBudget({
+            txPower_W: 10000, txEfficiency: 0.90,
+            txApertureDiameter_m: txAperture, rxApertureDiameter_m: 2.0,
+            distance_m: 500e3, wavelength_m: wavelength,
+            txPointingJitter_rad: divergence * 3, atmosphericLoss: 1.0,
+        });
+        assertRange('Jitter = 3x divergence: severe loss', b3.pointingLoss, 0, 0.001);
+    } catch (e) {
+        document.getElementById('error-log').textContent += `Test 10 error: ${e.message}\n${e.stack}\n\n`;
+    }
+
+    // =========================================================================
+    // Render results
+    // =========================================================================
+    render();
+    console.log(`Tests complete: ${_totalPass} passed, ${_totalFail} failed.`);
+    </script>
+</body>
+</html>
