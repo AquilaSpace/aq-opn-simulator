@@ -243,6 +243,7 @@ html, body {
     border-color: var(--accent);
 }
 
+
 /* --- Responsive: stack on small screens -------------------- */
 @media (max-width: 800px) {
     #hud-actions {

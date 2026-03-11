@@ -7,6 +7,7 @@ import { getNode } from './nodeManager.js';
 import { LINK_STATUS, BEAM_TYPES, MARGINAL_THRESHOLD_DB } from './constants.js';
 import { createButton, createSectionTitle } from './uiPanel.js';
 import { TOOLTIPS } from './tooltip.js';
+import { isTurbulenceEnabled } from './turbulenceModel.js';
 
 const _panelEl = document.getElementById('panel-link-inspector');
 const _bodyEl = document.getElementById('link-inspector-body');
@@ -81,10 +82,17 @@ export function showLinkInspector(linkId) {
             ['Capture fraction', `${(b.rxCaptureFraction * 100).toFixed(4)}% (${b.captureLoss_dB.toFixed(2)} dB)`, 'budget-capture'],
             ['Pointing loss', `${b.pointingLoss_dB.toFixed(2)} dB`, 'budget-pointing'],
             ['Atmospheric loss', `${b.atmosphericLoss_dB.toFixed(2)} dB`, 'budget-atm-loss'],
-            ['Total path loss', `${b.totalPathLoss_dB.toFixed(2)} dB`, 'budget-path-loss'],
-            ['Elevation angle', `${b.elevAngle_deg.toFixed(1)}\u00b0`, 'budget-elevation'],
-            ['LOS clear', b.losOk ? 'Yes' : 'BLOCKED', 'budget-los'],
         ];
+
+        // Turbulence rows (when applied to this link)
+        if (b.turbulenceApplied) {
+            rows.push(['Fried r\u2080', `${(b.r0_m * 100).toFixed(1)} cm`, 'budget-turb-r0']);
+            rows.push(['Scintillation', `${b.scintillationLoss_dB.toFixed(2)} dB`, 'budget-turb-scint']);
+        }
+
+        rows.push(['Total path loss', `${b.totalPathLoss_dB.toFixed(2)} dB`, 'budget-path-loss']);
+        rows.push(['Elevation angle', `${b.elevAngle_deg.toFixed(1)}\u00b0`, 'budget-elevation']);
+        rows.push(['LOS clear', b.losOk ? 'Yes' : 'BLOCKED', 'budget-los']);
 
         for (const [label, value, tipKey] of rows) {
             const tr = document.createElement('tr');
@@ -132,6 +140,14 @@ export function showLinkInspector(linkId) {
         }
 
         _bodyEl.appendChild(table);
+
+        // Turbulence warning note
+        if (!isTurbulenceEnabled() && (b.alt1_km < 100 || b.alt2_km < 100)) {
+            const warn = document.createElement('div');
+            warn.style.cssText = 'margin-top: 6px; padding: 4px 8px; font-size: 10px; color: var(--link-marginal); background: rgba(255,170,0,0.08); border-radius: 4px; border: 1px solid rgba(255,170,0,0.2);';
+            warn.textContent = 'Turbulence model disabled. Ground-to-space link efficiency may be optimistic by 2\u20135\u00d7. Enable in Beam Settings.';
+            _bodyEl.appendChild(warn);
+        }
     }
 
     // Delete button

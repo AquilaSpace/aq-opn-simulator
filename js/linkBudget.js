@@ -13,6 +13,7 @@ import {
 } from './physics.js';
 import { getNode } from './nodeManager.js';
 import { BEAM_TYPES, MARGINAL_THRESHOLD_DB } from './constants.js';
+import { computeTurbulenceCorrection, isTurbulenceEnabled } from './turbulenceModel.js';
 
 /**
  * Compute the full link budget for a link between two nodes.
@@ -76,7 +77,17 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
     const rxAperture = toNode.params.receiveAperture_m || toNode.params.apertureDiameter_m || 0.3;
     const trackingJitter_rad = (fromNode.params.trackingAccuracy_mrad || 0.1) * 1e-3;
 
-    // Compute budget
+    // Turbulence correction (only for ground-to-space links when enabled)
+    const turbCorr = computeTurbulenceCorrection({
+        wavelength_m,
+        distance_m,
+        txApertureDiameter_m: txAperture,
+        alt1_km,
+        alt2_km,
+        elevAngle_rad,
+    });
+
+    // Compute base budget (diffraction-limited Gaussian beam)
     const budget = computeLinkBudget({
         txPower_W,
         txEfficiency,
@@ -87,6 +98,43 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         txPointingJitter_rad: trackingJitter_rad,
         atmosphericLoss: atmTransmission,
     });
+
+    // Apply turbulence corrections if active for this link
+    let turbulenceApplied = false;
+    let turbBeamDiameter_m = null;
+    let scintillationLoss = 1.0;
+    let scintillationLoss_dB = 0;
+    let r0_m = null;
+
+    if (turbCorr) {
+        turbulenceApplied = true;
+        turbBeamDiameter_m = turbCorr.turbBeamDiameter_m;
+        scintillationLoss = turbCorr.scintillationLoss;
+        scintillationLoss_dB = 10 * Math.log10(Math.max(scintillationLoss, 1e-30));
+        r0_m = turbCorr.r0_m;
+
+        // Recompute capture fraction with turbulence-broadened beam
+        const wTurb_m = turbBeamDiameter_m / 2; // beam radius
+        const rxRadius_m = rxAperture / 2;
+        const turbCapture = Math.min(1.0,
+            1 - Math.exp(-2 * (rxRadius_m / wTurb_m) ** 2),
+        );
+        const turbCapture_dB = 10 * Math.log10(Math.max(turbCapture, 1e-30));
+
+        // Recalculate received power with turbulence
+        const rxPower_W = txPower_W * txEfficiency * turbCapture
+            * budget.pointingLoss * atmTransmission * scintillationLoss;
+        const rxPower_dBW = 10 * Math.log10(Math.max(rxPower_W, 1e-30));
+
+        // Overwrite budget fields with turbulence-corrected values
+        budget.beamDiameterAtRx_m = turbBeamDiameter_m;
+        budget.rxCaptureFraction = turbCapture;
+        budget.captureLoss_dB = turbCapture_dB;
+        budget.rxPower_W = rxPower_W;
+        budget.rxPower_kW = rxPower_W / 1000;
+        budget.rxPower_dBW = rxPower_dBW;
+        budget.totalPathLoss_dB = budget.txPower_dBW - rxPower_dBW;
+    }
 
     // Required power (from receiver node)
     const requiredPower_kW = toNode.params.requiredPower_kW || 0;
@@ -125,5 +173,11 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         requiredPower_dBW,
         marginOverRequired_dB,
         status,
+        // Turbulence fields
+        turbulenceApplied,
+        turbBeamDiameter_m,
+        scintillationLoss,
+        scintillationLoss_dB,
+        r0_m,
     };
 }
