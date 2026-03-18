@@ -131,11 +131,14 @@
                     </div>
                 </div>
                 <div id="turb-params" style="display: none;">
-                    <div class="control-row" id="turb-r0-row">
-                        <label for="turb-r0">Fried r&#8320;</label>
-                        <input type="range" id="turb-r0-slider" min="5" max="28" step="1" value="12">
-                        <input type="number" id="turb-r0-input" min="5" max="28" step="1" value="12">
-                        <span style="font-size: 10px; color: var(--text-dim);">cm</span>
+                    <div style="font-size: 9px; color: var(--text-dim); padding: 2px 0 4px; letter-spacing: 0.3px;">
+                        HV 5/7 profile &mdash; r&#8320; computed from station altitude
+                    </div>
+                    <div class="control-row" id="turb-wind-row">
+                        <label for="turb-wind">Wind aloft</label>
+                        <input type="range" id="turb-wind-slider" min="5" max="40" step="1" value="21">
+                        <input type="number" id="turb-wind-input" min="5" max="40" step="1" value="21">
+                        <span style="font-size: 10px; color: var(--text-dim);">m/s</span>
                     </div>
                     <div class="control-row" id="turb-tiptilt-row">
                         <label for="turb-tiptilt">Tip-tilt gain</label>
@@ -143,11 +146,11 @@
                         <input type="number" id="turb-tiptilt-input" min="0" max="0.95" step="0.05" value="0.60">
                     </div>
                     <div class="control-row" id="turb-cn2-row">
-                        <label for="turb-cn2">C&#8345;&sup2;</label>
+                        <label for="turb-cn2">Ground C&#8345;&sup2;</label>
                         <select id="turb-cn2">
-                            <option value="5e-15">Weak (5×10⁻¹⁵)</option>
-                            <option value="1e-14" selected>Moderate (10⁻¹⁴)</option>
-                            <option value="5e-14">Strong (5×10⁻¹⁴)</option>
+                            <option value="5e-15">Weak (5&#215;10&#8315;&#185;&#8309;)</option>
+                            <option value="1.7e-14" selected>Median (1.7&#215;10&#8315;&#185;&#8308;)</option>
+                            <option value="5e-14">Strong (5&#215;10&#8315;&#185;&#8308;)</option>
                         </select>
                     </div>
                 </div>
@@ -289,36 +292,6 @@
         <div class="hud-stat" id="dash-stat-uptime-item">
             <span class="hud-stat-value" id="dash-stat-uptime">&mdash;</span>
             <span class="hud-stat-label">DELIVERY AVAILABILITY</span>
-        </div>
-        <div class="hud-stat" id="dash-stat-viability-item">
-            <span class="hud-stat-value" id="dash-stat-viability">&mdash;</span>
-            <span class="hud-stat-label">BUSINESS CASE</span>
-        </div>
-    </div>
-
-    <!-- Bottom-left: business optimiser widget -->
-    <div id="hud-optimiser">
-        <div class="hud-optimiser-header">
-            <span class="hud-optimiser-title">BUSINESS OPTIMISER</span>
-            <button class="hud-btn-tiny" id="hud-opt-toggle" title="Show/hide optimiser">&#9660;</button>
-        </div>
-        <div id="hud-opt-body">
-            <div class="hud-opt-summary" id="hud-opt-summary">
-                <span class="hud-opt-margin-label">Gross Margin</span>
-                <span class="hud-opt-margin-value" id="hud-opt-margin">&mdash;</span>
-            </div>
-            <div class="hud-opt-target-row">
-                <label for="hud-opt-target-slider">Target</label>
-                <input type="range" id="hud-opt-target-slider" min="5" max="60" step="1" value="20">
-                <span id="hud-opt-target-display">20%</span>
-            </div>
-            <div class="hud-opt-levers" id="hud-opt-levers">
-                <!-- Populated by JS -->
-            </div>
-            <div class="hud-opt-actions">
-                <button class="hud-btn hud-btn-accent hud-btn-sm" id="hud-opt-suggest">Optimise</button>
-                <button class="hud-btn hud-btn-dim hud-btn-sm" id="hud-opt-apply" style="display:none;">Apply</button>
-            </div>
         </div>
     </div>
 

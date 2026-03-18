@@ -33,10 +33,7 @@ import { autoSuggestRelays, acceptSuggestion } from './optimiser.js';
 import { downloadJSON, importFromFile, exportScreenshot, importNetwork } from './serialisation.js';
 import { initTerrestrial, updateTerrestrial } from './terrestrial.js';
 import { applyStaticTooltips, TOOLTIPS } from './tooltip.js';
-import { initBusinessModel, getResults as getBusinessResults } from './businessModel.js';
-import { buildBusinessModelPanel, onSuggestionsApplied } from './businessModelPanel.js';
 import { setTurbulenceEnabled, setTurbulenceParams } from './turbulenceModel.js';
-import { computeSensitivity, suggestViableConfig, applySuggestions } from './businessOptimiser.js';
 
 // ---------------------------------------------------------------------------
 // Scene, Camera, Renderer
@@ -1271,29 +1268,10 @@ function updateDashboardHUD() {
         el('dash-stat-uptime').textContent = avgUptime !== null ? avgUptime.toFixed(1) + '%' : '\u2014';
     }
 
-    // Business case viability indicator
-    const bmResults = getBusinessResults();
-    const viabilityEl = el('dash-stat-viability');
-    if (viabilityEl && bmResults) {
-        if (bmResults.viability === 'VIABLE') {
-            viabilityEl.textContent = '\u2713 Viable';
-            viabilityEl.style.color = 'var(--link-active)';
-        } else if (bmResults.viability === 'MARGINAL') {
-            viabilityEl.textContent = '\u26A0 Marginal';
-            viabilityEl.style.color = 'var(--link-marginal)';
-        } else {
-            viabilityEl.textContent = '\u2717 Not viable';
-            viabilityEl.style.color = 'var(--link-broken)';
-        }
-    }
-
     // Sync epoch display
     const mainEpoch = document.getElementById('epoch-display');
     const dashEpoch = document.getElementById('dash-epoch-display');
     if (mainEpoch && dashEpoch) dashEpoch.textContent = mainEpoch.textContent;
-
-    // Update HUD optimiser widget (throttled — sensitivity analysis is expensive)
-    _hudOptThrottle();
 }
 
 /** Setup dashboard button bindings */
@@ -1362,195 +1340,8 @@ function setupDashboardBindings() {
 
 setupDashboardBindings();
 
-// ---------------------------------------------------------------------------
-// HUD Business Optimiser widget (customer view)
-// ---------------------------------------------------------------------------
-
-let _hudOptSuggestions = null;
-let _hudOptTimer = null;
-let _hudOptTargetMargin = 0.20;
-function _hudOptThrottle() {
-    if (_hudOptTimer) return;
-    _hudOptTimer = setTimeout(() => {
-        _hudOptTimer = null;
-        updateHudOptimiser();
-    }, 2000);
-}
-
-/**
- * After applying optimiser suggestions, sync the 3D scene to match
- * any changes to numSatellites (create or remove orbital customer nodes).
- */
-function syncSceneToSuggestions(suggestions) {
-    const satSuggestion = suggestions.find(s => s.key === 'numSatellites');
-    if (!satSuggestion) return;
-
-    const targetCount = Math.round(satSuggestion.to);
-    const currentSats = getAllNodes().filter(n => n.type === 'ORBITAL_CUSTOMER');
-    const diff = targetCount - currentSats.length;
-
-    if (diff > 0) {
-        // Add satellites
-        for (let i = 0; i < diff; i++) {
-            const lon = _randomGeoLon();
-            const count = getAllNodes().filter(n =>
-                n.type === 'GROUND_CUSTOMER' || n.type === 'ORBITAL_CUSTOMER' || n.type === 'LUNAR_NODE'
-            ).length + 1;
-            createNode({
-                type: 'ORBITAL_CUSTOMER',
-                name: 'Satellite Customer ' + count,
-                position: { lat_deg: 0, lon_deg: lon, alt_km: 400 },
-                params: {
-                    orbitalElements: {
-                        semiMajorAxis_km: 6771, eccentricity: 0, inclination_deg: 51.6,
-                        raan_deg: Math.random() * 360, argOfPerigee_deg: 0,
-                        trueAnomaly_deg: ((lon % 360) + 360) % 360,
-                    },
-                },
-            });
-        }
-        dashboardAutoConnect();
-    } else if (diff < 0) {
-        // Remove excess satellites (remove from the end)
-        const toRemove = currentSats.slice(diff); // last |diff| satellites
-        for (const sat of toRemove) {
-            removeLinksForNode(sat.id);
-            removeNode(sat.id);
-        }
-    }
-
-    updateDashboardHUD();
-}
-
-function setupHudOptimiser() {
-    const toggleBtn = document.getElementById('hud-opt-toggle');
-    const body = document.getElementById('hud-opt-body');
-    if (toggleBtn && body) {
-        toggleBtn.addEventListener('click', () => {
-            body.classList.toggle('collapsed');
-            toggleBtn.textContent = body.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
-        });
-    }
-
-    const targetSlider = document.getElementById('hud-opt-target-slider');
-    const targetDisplay = document.getElementById('hud-opt-target-display');
-    if (targetSlider) {
-        targetSlider.addEventListener('input', () => {
-            _hudOptTargetMargin = parseFloat(targetSlider.value) / 100;
-            if (targetDisplay) targetDisplay.textContent = targetSlider.value + '%';
-            // Clear stale suggestions so sensitivity levers refresh
-            _hudOptSuggestions = null;
-            const ab = document.getElementById('hud-opt-apply');
-            if (ab) ab.style.display = 'none';
-            updateHudOptimiser();
-        });
-    }
-
-    const suggestBtn = document.getElementById('hud-opt-suggest');
-    if (suggestBtn) {
-        suggestBtn.addEventListener('click', () => {
-            _hudOptSuggestions = suggestViableConfig({ targetMargin: _hudOptTargetMargin });
-            _renderHudOptSuggestions();
-        });
-    }
-
-    const applyBtn = document.getElementById('hud-opt-apply');
-    if (applyBtn) {
-        applyBtn.addEventListener('click', () => {
-            if (_hudOptSuggestions && _hudOptSuggestions.length > 0) {
-                applySuggestions(_hudOptSuggestions);
-                syncSceneToSuggestions(_hudOptSuggestions);
-                _hudOptSuggestions = null;
-                applyBtn.style.display = 'none';
-                updateHudOptimiser();
-            }
-        });
-    }
-
-    // Initial update
-    updateHudOptimiser();
-}
-
-function updateHudOptimiser() {
-    const bmResults = getBusinessResults();
-    const marginEl = document.getElementById('hud-opt-margin');
-    if (!marginEl || !bmResults) return;
-
-    const margin = bmResults.grossMargin;
-    const pct = (margin * 100).toFixed(1) + '%';
-    marginEl.textContent = pct;
-
-    if (margin >= 0.20) {
-        marginEl.style.color = 'var(--green)';
-    } else if (margin > 0) {
-        marginEl.style.color = 'var(--amber)';
-    } else {
-        marginEl.style.color = 'var(--red)';
-    }
-
-    // Show top 3 sensitivity levers
-    const leversEl = document.getElementById('hud-opt-levers');
-    if (!leversEl) return;
-
-    if (!_hudOptSuggestions) {
-        const sensitivities = computeSensitivity();
-        const top3 = sensitivities.slice(0, 3);
-        leversEl.innerHTML = top3.map(s => {
-            const arrow = s.deltaMargin > 0 ? '\u2191' : '\u2193';
-            const colour = s.deltaMargin > 0 ? 'var(--green)' : 'var(--red)';
-            return `<div class="hud-opt-lever-row">
-                <span class="hud-opt-lever-label">${s.label}</span>
-                <span class="hud-opt-lever-value" style="color:${colour};">${(s.deltaMargin * 100).toFixed(1)}% <span class="hud-opt-lever-arrow">${arrow}</span></span>
-            </div>`;
-        }).join('');
-    }
-}
-
-function _renderHudOptSuggestions() {
-    const leversEl = document.getElementById('hud-opt-levers');
-    const applyBtn = document.getElementById('hud-opt-apply');
-    if (!leversEl) return;
-
-    if (!_hudOptSuggestions || _hudOptSuggestions.length === 0) {
-        leversEl.innerHTML = '<div style="color:var(--text-dim);font-size:10px;">No improvements found within parameter ranges.</div>';
-        if (applyBtn) applyBtn.style.display = 'none';
-        return;
-    }
-
-    leversEl.innerHTML = _hudOptSuggestions.map(s => {
-        const arrow = s.to > s.from ? '\u2191' : '\u2193';
-        return `<div class="hud-opt-lever-row">
-            <span class="hud-opt-lever-label">${s.label}</span>
-            <span class="hud-opt-lever-value">${_fmtOptVal(s.from, s.unit)} \u2192 <strong>${_fmtOptVal(s.to, s.unit)}</strong> ${arrow}</span>
-        </div>`;
-    }).join('');
-
-    const last = _hudOptSuggestions[_hudOptSuggestions.length - 1];
-    const expectedMargin = (last.marginAfter * 100).toFixed(1);
-    const targetPct = (_hudOptTargetMargin * 100).toFixed(0);
-    leversEl.innerHTML += `<div style="margin-top:4px;font-size:10px;color:${last.marginAfter >= _hudOptTargetMargin ? 'var(--link-active)' : 'var(--link-marginal)'};">Expected margin: ${expectedMargin}% (target: ${targetPct}%)</div>`;
-
-    if (applyBtn) applyBtn.style.display = '';
-}
-
-function _fmtOptVal(value, unit) {
-    let str;
-    if (value >= 1000) str = value.toFixed(0);
-    else if (value >= 10) str = value.toFixed(1);
-    else if (value >= 1) str = value.toFixed(2);
-    else str = value.toFixed(3);
-    return unit ? str + ' ' + unit : str;
-}
-
-setupHudOptimiser();
-
 // Load demo scene
 loadDemoScene();
-
-// Business model module
-initBusinessModel();
-buildBusinessModelPanel();
-onSuggestionsApplied(syncSceneToSuggestions);
 
 // Apply hover tooltips to static HTML elements
 applyStaticTooltips();
