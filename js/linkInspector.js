@@ -87,6 +87,18 @@ export function showLinkInspector(linkId) {
         // Turbulence rows (when applied to this link)
         if (b.turbulenceApplied) {
             rows.push(['Fried r\u2080', `${(b.r0_m * 100).toFixed(1)} cm`, 'budget-turb-r0']);
+            if (b.theta0_rad != null) {
+                rows.push(['Isoplanatic \u03b8\u2080', `${(b.theta0_rad * 1e6).toFixed(1)} \u00b5rad`, 'budget-turb-theta0']);
+            }
+            if (b.pointAhead_rad != null) {
+                rows.push(['Point-ahead', `${(b.pointAhead_rad * 1e6).toFixed(1)} \u00b5rad`, 'budget-turb-pa']);
+            }
+            if (b.tiltStrehl != null) {
+                rows.push(['Tilt Strehl', `${(b.tiltStrehl * 100).toFixed(1)}%`, 'budget-turb-tilt-strehl']);
+            }
+            if (b.hoStrehl != null) {
+                rows.push(['HO Strehl', `${(b.hoStrehl * 100).toFixed(1)}%`, 'budget-turb-ho-strehl']);
+            }
             rows.push(['Scintillation', `${b.scintillationLoss_dB.toFixed(2)} dB`, 'budget-turb-scint']);
         }
 

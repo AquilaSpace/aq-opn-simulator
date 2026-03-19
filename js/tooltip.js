@@ -156,7 +156,7 @@ export const TOOLTIPS = {
     'budget-pointing':
         'Power loss due to beam pointing jitter. exp(\u22122(\u03c3/\u03b8)\u00b2) \u2014 tighter beams are more sensitive to tracking error.',
     'budget-atm-loss':
-        'Atmospheric attenuation via exponential scale-height model. Depends on elevation angle, altitude, and weather condition.',
+        'Atmospheric attenuation using zenith transmittance + optical scale height (H=2 km). T = exp(\u2212\u03c4\u2080 \u00d7 exp(\u2212h/H) / sin(el)). Depends on beam type, weather, elevation, and ground altitude.',
     'budget-path-loss':
         'Total end-to-end loss from transmitter to receiver in dB, including all loss terms.',
     'budget-elevation':
@@ -224,67 +224,29 @@ export const TOOLTIPS = {
     'atm-condition-row':
         'Atmospheric weather condition. Affects extinction coefficient: clear ~0.2 dB/km, haze ~1.5 dB/km, rain ~4 dB/km (at 1080 nm).',
     'turb-toggle-row':
-        'Enable atmospheric turbulence corrections for ground-to-space links. Higher-order AO is ineffective due to point-ahead anisoplanatism; only tip-tilt correction helps. Disabling uses diffraction-limited beam model (optimistic by 2\u20135\u00d7).',
-    'turb-r0-row':
-        'Fried parameter r\u2080 at zenith \u2014 coherence diameter of the atmosphere. 5 cm = poor seeing, 12 cm = median, 20 cm = good, 28 cm = excellent. Corrected for elevation angle in the link budget.',
+        'Enable HV-5/7 atmospheric turbulence model for ground-to-space links. Computes r\u2080, \u03b8\u2080, point-ahead anisoplanatism, and Noll tilt/HO Strehl decomposition. Disabling uses diffraction-limited beam model (optimistic by 2\u20135\u00d7).',
     'turb-tiptilt-row':
         'Effectiveness of tip-tilt beam steering correction. 0 = no correction, 0.6 = good active tracking, 0.9 = excellent. Removes low-order beam wander.',
     'turb-cn2-row':
-        'Ground-level refractive index structure constant C\u2099\u00b2. Drives scintillation (intensity fluctuations). Strong turbulence = more scintillation loss.',
+        'Ground-level refractive index structure constant C\u2099\u00b2 (A parameter in HV-5/7). Drives near-ground turbulence layer and scintillation.',
 
     // -- Link Inspector turbulence rows --
     'budget-turb-r0':
-        'Elevation-corrected Fried parameter: r\u2080(el) = r\u2080(zenith) \u00d7 sin(el)^(3/5). Determines the effective aperture for beam propagation through turbulence.',
+        'Elevation-corrected Fried parameter: r\u2080(el) = r\u2080(zenith) \u00d7 sin(el)^(3/5). Computed from HV-5/7 profile integration and wavelength-scaled to the operating beam.',
     'budget-turb-scint':
         'Scintillation power loss from intensity fluctuations (Rytov variance model). Multiplied into the link budget after geometric capture.',
+    'budget-turb-theta0':
+        'Isoplanatic angle \u03b8\u2080 \u2014 angular radius over which wavefront corrections remain valid. Elevation-scaled: \u03b8\u2080(el) = \u03b8\u2080(zenith) \u00d7 sin(el)^(8/5).',
+    'budget-turb-pa':
+        'Point-ahead angle: 2v_orbit/c. The angular offset between the uplink and downlink paths due to satellite motion during light travel time.',
+    'budget-turb-tilt-strehl':
+        'Tilt Strehl ratio: fraction of tip-tilt correction preserved despite point-ahead anisoplanatism. S_TT = exp(\u2212(\u03b8_PA/\u03b8_TA)^(5/3)). ~30\u201350% uncertainty.',
+    'budget-turb-ho-strehl':
+        'Higher-order Strehl ratio: fraction of AO correction preserved. S_HO = 0.7 \u00d7 exp(\u2212(\u03b8_PA/\u03b8\u2080)^(5/3)). Near zero when point-ahead >> \u03b8\u2080.',
 
-    // -- Dashboard HUD --
-    'dash-stat-viability-item':
-        'Business case viability from the Business Model panel. Green = gross margin >20% and payback \u22648 years. Amber = profitable but long payback. Red = unprofitable.',
-
-    // -- Business Model panel --
-    'bm-capex':
-        'Capital expenditure per ground station including laser system, telescope, adaptive optics, facility construction, and site preparation.',
-    'bm-opex':
-        'Annual operating cost per station: staff, maintenance, utilities, licensing, and consumables.',
-    'bm-amort':
-        'Period over which CAPEX is amortised for annualised cost calculations.',
-    'bm-elec':
-        'Grid electricity rate at the ground station site. Major cost driver for high-power laser operation.',
-    'bm-laser-power':
-        'Optical output power per ground station laser system. Auto-populated from simulation if not overridden.',
-    'bm-link-eff':
-        'End-to-end optical link efficiency (Tx to Rx aperture). Includes beam divergence, capture fraction, pointing, and atmospheric losses. Auto-populated from active simulation links.',
-    'bm-weather':
-        'Fraction of time weather permits laser beaming. Cloud cover is the primary limiter for optical ground-to-space links.',
-    'bm-passes':
-        'Number of usable passes per day per ground station above the minimum elevation angle. Auto-computed from orbital propagation.',
-    'bm-min-pass':
-        'Average usable duration per pass above the minimum elevation threshold. Auto-computed from orbital propagation.',
-    'bm-min-elev':
-        'Minimum elevation angle for power beaming. Higher thresholds reduce atmospheric path length but also reduce pass duration and frequency.',
-    'bm-num-sats':
-        'Total customer satellites in the fleet. Auto-populated from simulation orbital customer count.',
-    'bm-price-sat':
-        'Annual service subscription price charged to each customer satellite operator.',
-    'bm-mass':
-        'Mass of battery and solar panel hardware displaced per satellite by using wireless power. Drives the customer value proposition.',
-    'bm-launch-cost':
-        'Launch cost per kilogramme to the target orbit. Typical LEO: $2,000\u2013$5,000/kg (Falcon 9 rideshare).',
-    'bm-hw-cost':
-        'Cost per kilogramme of the displaced space-qualified hardware (batteries, solar cells, power electronics).',
-    'bm-pv-eff':
-        'Photovoltaic cell efficiency for converting received optical power to electrical power. Multi-junction cells at 1080 nm can reach 55\u201365%.',
-    'bm-target-power':
-        'Target continuous electrical power the satellite needs during eclipse periods. Used for eclipse coverage calculation.',
-    'bm-gross-margin':
-        'Gross margin: (revenue \u2212 total annual cost) / revenue. Above 20% with payback \u22648 years = viable.',
-    'bm-payback':
-        'Years to recover total CAPEX from annual profit (revenue minus OPEX and electricity).',
-    'bm-peak-power':
-        'Peak electrical power delivered to a customer: laser power \u00d7 link efficiency \u00d7 PV cell efficiency.',
-    'bm-eclipse':
-        'Percentage of eclipse energy demand met by the beamed power system. 100% = full eclipse coverage.',
+    // -- Beam Settings turbulence controls --
+    'turb-wind-row':
+        'High-altitude wind speed V for the HV-5/7 Cn\u00b2 profile. Drives the upper-atmosphere turbulence layer. Default 21 m/s (median). Higher wind = smaller r\u2080.',
 };
 
 // ---------------------------------------------------------------------------

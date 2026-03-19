@@ -677,16 +677,16 @@ function setupUIBindings() {
         });
     }
 
-    // Turbulence r0 slider/input sync
-    const turbR0Slider = document.getElementById('turb-r0-slider');
-    const turbR0Input = document.getElementById('turb-r0-input');
-    if (turbR0Slider && turbR0Input) {
-        const updateR0 = (v) => {
-            setTurbulenceParams({ r0_cm: parseFloat(v) });
+    // Turbulence wind speed slider/input sync
+    const turbWindSlider = document.getElementById('turb-wind-slider');
+    const turbWindInput = document.getElementById('turb-wind-input');
+    if (turbWindSlider && turbWindInput) {
+        const updateWind = (v) => {
+            setTurbulenceParams({ windSpeed_ms: parseFloat(v) });
             recomputeAllLinks();
         };
-        turbR0Slider.addEventListener('input', () => { turbR0Input.value = turbR0Slider.value; updateR0(turbR0Slider.value); });
-        turbR0Input.addEventListener('input', () => { turbR0Slider.value = turbR0Input.value; updateR0(turbR0Input.value); });
+        turbWindSlider.addEventListener('input', () => { turbWindInput.value = turbWindSlider.value; updateWind(turbWindSlider.value); });
+        turbWindInput.addEventListener('input', () => { turbWindSlider.value = turbWindInput.value; updateWind(turbWindInput.value); });
     }
 
     // Turbulence tip-tilt slider/input sync
@@ -815,6 +815,13 @@ function animate() {
 // ---------------------------------------------------------------------------
 
 setupUIBindings();
+
+// Enable turbulence by default
+setTurbulenceEnabled(true);
+const _turbToggleInit = document.getElementById('turb-toggle');
+if (_turbToggleInit) _turbToggleInit.checked = true;
+const _turbParamsInit = document.getElementById('turb-params');
+if (_turbParamsInit) _turbParamsInit.style.display = '';
 
 // ---------------------------------------------------------------------------
 // Demo scene (loaded on first visit)

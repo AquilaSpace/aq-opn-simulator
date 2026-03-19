@@ -16,7 +16,6 @@ import {
     computeDistance_km,
     checkLineOfSight,
     getAltitude_km,
-    getExtinction,
 } from './physics.js';
 import { getBeamTypeKey, getAtmConditionKey, createLink } from './linkManager.js';
 import { BEAM_TYPES } from './constants.js';
@@ -58,7 +57,6 @@ export function autoSuggestRelays(opts = {}) {
     const atmKey = getAtmConditionKey();
     const beam = BEAM_TYPES[beamKey];
     const wavelength_m = beam ? beam.wavelength_m : 1080e-9;
-    const extinction = getExtinction(beamKey, atmKey);
 
     const suggestions = [];
 
@@ -69,7 +67,7 @@ export function autoSuggestRelays(opts = {}) {
         let bestMargin = -Infinity;
 
         for (const source of sources) {
-            const margin = _quickMarginCheck(source, customer, wavelength_m, extinction);
+            const margin = _quickMarginCheck(source, customer, wavelength_m, beamKey, atmKey);
             if (margin > bestMargin) {
                 bestMargin = margin;
                 bestSource = source;
@@ -89,8 +87,8 @@ export function autoSuggestRelays(opts = {}) {
 
             // Check if ground relay at midpoint works
             const groundRelayPos = latLonAltToScene(midLatLon.lat_deg, midLatLon.lon_deg, 0);
-            const margin1 = _quickMarginCheckPos(bestSource, groundRelayPos, wavelength_m, extinction);
-            const margin2 = _quickMarginCheckPos2(groundRelayPos, customer, wavelength_m, extinction);
+            const margin1 = _quickMarginCheckPos(bestSource, groundRelayPos, wavelength_m, beamKey, atmKey);
+            const margin2 = _quickMarginCheckPos2(groundRelayPos, customer, wavelength_m, beamKey, atmKey);
 
             if (margin1 >= minMargin_dB && margin2 >= minMargin_dB) {
                 suggestions.push({
@@ -107,8 +105,8 @@ export function autoSuggestRelays(opts = {}) {
             // Place at GEO altitude above midpoint longitude
             const orbAlt_km = Math.min(35786, maxAltitude_km); // GEO
             const orbPos = latLonAltToScene(0, midLatLon.lon_deg, orbAlt_km);
-            const margin1o = _quickMarginCheckPos(bestSource, orbPos, wavelength_m, extinction);
-            const margin2o = _quickMarginCheckPos2(orbPos, customer, wavelength_m, extinction);
+            const margin1o = _quickMarginCheckPos(bestSource, orbPos, wavelength_m, beamKey, atmKey);
+            const margin2o = _quickMarginCheckPos2(orbPos, customer, wavelength_m, beamKey, atmKey);
 
             if (margin1o >= minMargin_dB && margin2o >= minMargin_dB) {
                 suggestions.push({
@@ -175,13 +173,12 @@ export function acceptSuggestion(suggestion) {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function _quickMarginCheck(source, target, wavelength_m, extinction) {
-    const p1 = source.scenePos;
+function _quickMarginCheck(source, target, wavelength_m, beamKey, atmKey) {
     const p2 = target.scenePos;
-    return _quickMarginCheckPos(source, p2, wavelength_m, extinction);
+    return _quickMarginCheckPos(source, p2, wavelength_m, beamKey, atmKey);
 }
 
-function _quickMarginCheckPos(source, targetPos, wavelength_m, extinction) {
+function _quickMarginCheckPos(source, targetPos, wavelength_m, beamKey, atmKey) {
     const p1 = source.scenePos;
     const distance_km = computeDistance_km(p1, targetPos);
     const distance_m = distance_km * 1000;
@@ -194,7 +191,7 @@ function _quickMarginCheckPos(source, targetPos, wavelength_m, extinction) {
         alt1 < alt2 ? p1 : targetPos,
         alt1 < alt2 ? targetPos : p1
     );
-    const atmLoss = computeAtmosphericTransmission(alt1, alt2, elev, extinction);
+    const atmLoss = computeAtmosphericTransmission(alt1, alt2, elev, beamKey, atmKey);
 
     const txPower_W = (source.params.transmitPower_kW || 10) * 1000;
     const txAp = source.params.apertureDiameter_m || 0.3;
@@ -214,7 +211,7 @@ function _quickMarginCheckPos(source, targetPos, wavelength_m, extinction) {
     return budget.rxPower_dBW - (10 * Math.log10(txPower_W)); // Simplified margin
 }
 
-function _quickMarginCheckPos2(fromPos, target, wavelength_m, extinction) {
+function _quickMarginCheckPos2(fromPos, target, wavelength_m, beamKey, atmKey) {
     const distance_km = computeDistance_km(fromPos, target.scenePos);
     const distance_m = distance_km * 1000;
 
@@ -226,7 +223,7 @@ function _quickMarginCheckPos2(fromPos, target, wavelength_m, extinction) {
         alt1 < alt2 ? fromPos : target.scenePos,
         alt1 < alt2 ? target.scenePos : fromPos
     );
-    const atmLoss = computeAtmosphericTransmission(alt1, alt2, elev, extinction);
+    const atmLoss = computeAtmosphericTransmission(alt1, alt2, elev, beamKey, atmKey);
 
     const budget = computeLinkBudget({
         txPower_W: 30000, // Default relay power

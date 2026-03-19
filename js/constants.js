@@ -49,11 +49,29 @@ export const SPEED_OF_LIGHT = 299792458;
 /** Gravitational parameter of Earth, km³/s² */
 export const MU_EARTH = 398600.4418;
 
-/** Atmospheric scale height in km */
+/** Atmospheric scale height in km (pressure — retained for reference) */
 export const ATMOSPHERE_SCALE_HEIGHT_KM = 8.5;
+
+/** Optical extinction scale height in km (water vapour + aerosol blend) */
+export const OPTICAL_SCALE_HEIGHT_KM = 2.0;
 
 /** Karman line — edge of space in km */
 export const KARMAN_LINE_KM = 100;
+
+/** Earth gravitational parameter in m³/s² */
+export const GM_EARTH_M3S2 = 3.986004418e14;
+
+/** Noll (1976) Table IV: tip-tilt variance fraction of total Zernike variance */
+export const NOLL_TILT_FRACTION = 0.870;
+
+/** Remaining higher-order Zernike variance fraction */
+export const NOLL_HO_FRACTION = 0.130;
+
+/** Reference wavelength for r0/theta0 values (m) */
+export const TURBULENCE_REF_WAVELENGTH_M = 500e-9;
+
+/** Typical well-corrected AO system Strehl ceiling */
+export const AO_IDEAL_STREHL = 0.7;
 
 /** Minimum elevation angle for ground links (radians) */
 export const MIN_ELEVATION_RAD = 10 * Math.PI / 180;
@@ -99,6 +117,16 @@ export const ATMOSPHERIC_CONDITIONS = {
     clear: { label: 'Clear', key: 'extinctionClear_dBpkm' },
     haze:  { label: 'Haze',  key: 'extinctionHaze_dBpkm' },
     rain:  { label: 'Light Rain', key: 'extinctionRain_dBpkm' },
+};
+
+/**
+ * Zenith sea-level transmission per beam type and weather condition.
+ * T = fraction of power transmitted through the atmosphere at zenith.
+ */
+export const ZENITH_TRANSMISSION = {
+    YB_FIBRE:  { clear: 0.85, haze: 0.45, rain: 0.15 },
+    EYE_SAFE:  { clear: 0.88, haze: 0.50, rain: 0.20 },
+    GREEN_532: { clear: 0.75, haze: 0.30, rain: 0.08 },
 };
 
 // ---------------------------------------------------------------------------

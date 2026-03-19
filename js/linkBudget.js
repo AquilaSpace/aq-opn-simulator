@@ -9,7 +9,6 @@ import {
     computeDistance_km,
     checkLineOfSight,
     getAltitude_km,
-    getExtinction,
 } from './physics.js';
 import { getNode } from './nodeManager.js';
 import { BEAM_TYPES, MARGINAL_THRESHOLD_DB } from './constants.js';
@@ -65,9 +64,8 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
     const higherPos = alt1_km < alt2_km ? p2 : p1;
     const elevAngle_rad = computeElevationAngle(lowerPos, higherPos);
 
-    // Atmospheric attenuation
-    const extinction = getExtinction(effectiveBeamKey, atmCondKey);
-    const atmTransmission = computeAtmosphericTransmission(alt1_km, alt2_km, elevAngle_rad, extinction);
+    // Atmospheric attenuation (zenith-transmittance + optical scale height model)
+    const atmTransmission = computeAtmosphericTransmission(alt1_km, alt2_km, elevAngle_rad, effectiveBeamKey, atmCondKey);
 
     // Node parameters
     const txPower_kW = fromNode.params.transmitPower_kW || 0;
@@ -85,6 +83,7 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         alt1_km,
         alt2_km,
         elevAngle_rad,
+        satAltitude_km: Math.max(alt1_km, alt2_km),
     });
 
     // Compute base budget (diffraction-limited Gaussian beam)
@@ -105,6 +104,11 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
     let scintillationLoss = 1.0;
     let scintillationLoss_dB = 0;
     let r0_m = null;
+    let theta0_rad = null;
+    let pointAhead_rad = null;
+    let tiltIsoplanatic_rad = null;
+    let tiltStrehl = null;
+    let hoStrehl = null;
 
     if (turbCorr) {
         turbulenceApplied = true;
@@ -112,6 +116,11 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         scintillationLoss = turbCorr.scintillationLoss;
         scintillationLoss_dB = 10 * Math.log10(Math.max(scintillationLoss, 1e-30));
         r0_m = turbCorr.r0_m;
+        theta0_rad = turbCorr.theta0_rad;
+        pointAhead_rad = turbCorr.pointAhead_rad;
+        tiltIsoplanatic_rad = turbCorr.tiltIsoplanatic_rad;
+        tiltStrehl = turbCorr.tiltStrehl;
+        hoStrehl = turbCorr.hoStrehl;
 
         // Recompute capture fraction with turbulence-broadened beam
         const wTurb_m = turbBeamDiameter_m / 2; // beam radius
@@ -168,7 +177,6 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         alt2_km,
         elevAngle_rad,
         elevAngle_deg: elevAngle_rad * 180 / Math.PI,
-        extinctionCoeff: extinction,
         requiredPower_kW,
         requiredPower_dBW,
         marginOverRequired_dB,
@@ -179,5 +187,10 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         scintillationLoss,
         scintillationLoss_dB,
         r0_m,
+        theta0_rad,
+        pointAhead_rad,
+        tiltIsoplanatic_rad,
+        tiltStrehl,
+        hoStrehl,
     };
 }

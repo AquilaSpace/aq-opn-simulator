@@ -7,8 +7,8 @@
 
 import {
     EARTH_RADIUS_KM, MOON_RADIUS_KM, MOON_DISTANCE_KM,
-    ATMOSPHERE_SCALE_HEIGHT_KM, KARMAN_LINE_KM,
-    BEAM_TYPES, ATMOSPHERIC_CONDITIONS, SCENE_SCALE_KM,
+    ATMOSPHERE_SCALE_HEIGHT_KM, OPTICAL_SCALE_HEIGHT_KM, KARMAN_LINE_KM,
+    BEAM_TYPES, ATMOSPHERIC_CONDITIONS, ZENITH_TRANSMISSION, SCENE_SCALE_KM,
 } from './constants.js';
 
 // ---------------------------------------------------------------------------
@@ -112,36 +112,37 @@ export function computeLinkBudget(opts) {
 /**
  * Compute atmospheric transmission factor for a slant path between two altitudes.
  *
+ * Uses zenith sea-level transmittance + optical extinction scale height (2 km)
+ * to model the exponential drop-off of optical extinction with altitude.
+ *
  * @param {number} alt1_km       — altitude of endpoint 1 in km
  * @param {number} alt2_km       — altitude of endpoint 2 in km
  * @param {number} elevAngle_rad — elevation angle of the link above local horizon
- * @param {number} extinction_dBpkm — extinction coefficient at sea level (dB/km)
+ * @param {string} beamTypeKey   — key from BEAM_TYPES (e.g. 'YB_FIBRE')
+ * @param {string} conditionKey  — key from ATMOSPHERIC_CONDITIONS (e.g. 'clear')
  * @returns {number} atmospheric transmission factor (0–1)
  */
-export function computeAtmosphericTransmission(alt1_km, alt2_km, elevAngle_rad, extinction_dBpkm) {
+export function computeAtmosphericTransmission(alt1_km, alt2_km, elevAngle_rad, beamTypeKey, conditionKey) {
     // If both endpoints above Karman line, no atmospheric loss
     if (alt1_km >= KARMAN_LINE_KM && alt2_km >= KARMAN_LINE_KM) {
         return 1.0;
     }
 
-    const H = ATMOSPHERE_SCALE_HEIGHT_KM;
+    // Look up zenith sea-level transmittance
+    const beamTable = ZENITH_TRANSMISSION[beamTypeKey];
+    const T_zenith_sea = beamTable ? (beamTable[conditionKey] ?? 0.85) : 0.85;
 
-    // Effective path length through atmosphere using scale height model
-    const sinEl = Math.max(Math.sin(elevAngle_rad), 0.01); // Avoid division by zero
+    // Zenith optical depth at sea level
+    const tau0 = -Math.log(T_zenith_sea);
 
-    const h1 = Math.max(alt1_km, 0);
-    const h2 = Math.max(alt2_km, 0);
+    const H_opt = OPTICAL_SCALE_HEIGHT_KM;
+    const sinEl = Math.max(Math.sin(elevAngle_rad), 0.01);
 
-    // Effective path length: integral of density along slant path
-    // L_eff = H / sin(el) * (exp(-h_low/H) - exp(-h_high/H))
-    const hLow = Math.min(h1, h2);
-    const hHigh = Math.min(Math.max(h1, h2), KARMAN_LINE_KM);
+    // Ground altitude of the lower endpoint
+    const hGround = Math.max(Math.min(alt1_km, alt2_km), 0);
 
-    const effectivePathLength_km = (H / sinEl) * (Math.exp(-hLow / H) - Math.exp(-hHigh / H));
-
-    // Total atmospheric loss
-    const totalLoss_dB = extinction_dBpkm * effectivePathLength_km;
-    const transmission = Math.pow(10, -totalLoss_dB / 10);
+    // T = exp(-tau0 * exp(-h_ground / H_opt) / sin(el))
+    const transmission = Math.exp(-tau0 * Math.exp(-hGround / H_opt) / sinEl);
 
     return Math.max(0, Math.min(1, transmission));
 }
