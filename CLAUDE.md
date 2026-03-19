@@ -33,12 +33,13 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 - British English for all prose and user-facing strings.
 
 ## Key Modules
-- `constants.js` — Scale factors, physical constants, node type registry (8 types incl. ORBITAL_CUSTOMER), beam types, coordinate helpers
-- `physics.js` — Pure link budget calculations (Gaussian beam model: θ=λ/πw₀ divergence, 1−exp(−2r²/w²) capture), atmospheric attenuation, LOS
+- `constants.js` — Scale factors, physical constants, node type registry (8 types incl. ORBITAL_CUSTOMER), beam types, zenith transmission table, turbulence constants, coordinate helpers
+- `physics.js` — Pure link budget calculations (Gaussian beam model: θ=λ/πw₀ divergence, 1−exp(−2r²/w²) capture), atmospheric attenuation (zenith transmittance + H=2 km optical scale height), LOS
+- `turbulenceModel.js` — HV-5/7 Cn² profile integration (station-altitude-aware), r₀/θ₀ with wavelength + elevation scaling, point-ahead angle, Noll 87/13 tilt/HO Strehl decomposition, effective spot size. Enabled by default with wind=21 m/s, Cn²=1.7e-14
 - `tooltip.js` — Hover tooltip system with centralised TOOLTIPS registry; event delegation so dynamic elements work automatically
 - `nodeManager.js` — Node CRUD, Three.js mesh creation, selection, dragging
 - `linkManager.js` — Link CRUD, beam rendering with particles, status colour coding, per-frame visual position updates
-- `linkBudget.js` — Wraps physics.js for per-link budget computation with node parameters; status classification (ACTIVE/MARGINAL/BROKEN/INACTIVE)
+- `linkBudget.js` — Wraps physics.js + turbulenceModel.js for per-link budget computation with node parameters; exposes turbulence fields (r₀, θ₀, point-ahead, Strehl ratios); status classification (ACTIVE/MARGINAL/BROKEN/INACTIVE)
 - `orbitalMechanics.js` — Keplerian propagation with J2 (Newton-Raphson Kepler solver), ECI→scene coords, orbit trail rendering
 - `timeController.js` — Play/pause/speed (up to 10000×), epoch display, per-frame orbital propagation with throttled link recompute
 - `uptimeTracker.js` — Per-node power uptime percentage tracking
@@ -60,6 +61,10 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 - HUD stat elements (`#hud-left`, `#hud-right`, `#hud-epoch`, `#hud-speed`) are `pointer-events: none`; only buttons capture clicks
 - Pointing loss formula: exp(-2 × (σ_pointing / θ_divergence)²) — extremely sensitive when σ > θ. Default tracking accuracy (0.0001 mrad = 100 nrad) must be well below divergence half-angle
 - Beam model is Gaussian (not Airy/uniform): divergence = λ/(πw₀), capture = 1−exp(−2(r_rx/w)²). Tighter beam than 1.22λ/D but more pointing-sensitive
+- Turbulence model is enabled by default. HV-5/7 integration starts from ground station altitude (not sea level), so high-altitude sites get larger r₀/θ₀. The A·exp(−h/100) ground layer has 100 m scale height — essentially zero above ~500 m
+- Atmospheric transmission uses optical scale height H=2 km (not pressure scale height 8.5 km). Zenith transmittance is looked up per beam type + weather from ZENITH_TRANSMISSION table in constants.js
+- Point-ahead anisoplanatism dominates for LEO targets: θ_PA ≈ 51 µrad at 400 km, while θ₀ ≈ 15–18 µrad at 1080 nm. This means HO AO correction is ineffective; only tip-tilt helps
+- Tilt Strehl uncertainty is ~30–50% (conservative exponential model). HO Strehl is capped at AO_IDEAL_STREHL=0.7
 - Demo scene uses MW-class sources with 5 m apertures and 100 nrad tracking to deliver 10s of kW at GEO distance
 - Hover tooltips on all technical metrics (both views). Tooltip text is centralised in `tooltip.js` TOOLTIPS registry. Uses `data-tooltip` attributes and event delegation — dynamic elements work automatically
 - App defaults to Customer View on startup; toggle button in header switches between views

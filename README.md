@@ -17,7 +17,8 @@ Interactive 3D simulation tool for designing and analysing laser/optical wireles
 - **3D Globe Scene** — Textured Earth and Moon at correct relative scale and distance, with starfield background and atmospheric glow
 - **Node System** — Place and configure ground sources, ground/orbital relays, ground/orbital customers, lunar installations, and mobile platforms
 - **Power Links** — Directed laser power links with colour-coded health status (active/marginal/broken) and animated energy flow particles. Link visuals track satellite positions smoothly every frame.
-- **Link Budget Analysis** — Full Gaussian beam optical link budget: transmit power, diffraction-limited divergence (θ = λ/πw₀), Gaussian capture fraction (1 − exp(−2r²/w²)), exponential scale-height atmospheric attenuation, pointing loss, and margin over required power
+- **Link Budget Analysis** — Full Gaussian beam optical link budget: transmit power, diffraction-limited divergence (θ = λ/πw₀), Gaussian capture fraction (1 − exp(−2r²/w²)), zenith-transmittance atmospheric model (H=2 km optical scale height), pointing loss, and margin over required power
+- **Atmospheric Turbulence** — HV-5/7 Cn² profile integration for r₀ and θ₀, wavelength scaling, elevation correction, point-ahead anisoplanatism, Noll 87/13 tilt/HO Strehl decomposition, and ground station altitude-aware integration. Enabled by default.
 - **Hover Tooltips** — Every technical metric, parameter, and statistic has a hover tooltip explaining what it is, how it is calculated, and what affects it
 - **Beam Types** — Selectable wavelengths (1080 nm Yb fibre, 1550 nm eye-safe, 532 nm visible, custom) with per-link overrides
 - **Orbital Mechanics** — Keplerian propagation with J2 perturbation for satellite nodes; smooth per-frame position updates with throttled link recomputation. Time controller with play/pause/speed up to 10000×
@@ -68,6 +69,7 @@ aq-opn-simulator/
 │   ├── nodeManager.js      # Node CRUD, type registry, 3D mesh creation
 │   ├── linkManager.js      # Power link management, beam line rendering
 │   ├── linkBudget.js       # Per-link budget calculations
+│   ├── turbulenceModel.js  # HV-5/7 atmospheric turbulence model
 │   ├── orbitalMechanics.js # Keplerian propagation with J2, coordinate conversions
 │   ├── optimiser.js        # Greedy relay placement engine
 │   ├── uptimeTracker.js    # Per-node power uptime tracking
@@ -104,7 +106,8 @@ Uses a Gaussian beam propagation model (aperture-to-aperture):
 - **Beam expansion** — w(z) = w₀ √(1 + (z/z_R)²), with Rayleigh range z_R = πw₀²/λ
 - **Capture fraction** — Gaussian integral over receiver aperture: η = 1 − exp(−2(r_rx/w)²)
 - **Pointing loss** — exp(−2(σ_pointing/θ_divergence)²)
-- **Atmospheric attenuation** — Exponential scale-height model (H = 8.5 km) with slant-path correction
+- **Atmospheric attenuation** — Zenith transmittance lookup (per beam type/weather) with optical extinction scale height (H = 2 km) and slant-path correction: T = exp(−τ₀ × exp(−h/H) / sin(el))
+- **Turbulence model** — HV-5/7 Cn²(h) profile numerically integrated from station altitude to 25 km (50 m bins). Computes Fried parameter r₀ and isoplanatic angle θ₀ at 500 nm, wavelength-scaled via (λ/500nm)^(6/5), elevation-corrected. Point-ahead angle θ_PA = 2v_orbit/c. Noll decomposition: 87% tilt wander, 13% higher-order. Tilt Strehl S_TT = exp(−(θ_PA/θ_TA)^(5/3)), HO Strehl S_HO = 0.7 × exp(−(θ_PA/θ₀)^(5/3)). Effective spot combines diffraction, residual wander, and residual HO in quadrature
 
 ### Beam Types
 
