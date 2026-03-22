@@ -79,6 +79,6 @@ Follows Aquila Brand Guidelines (`Aquila - Brand Guidelines.pdf` in repo root).
 - Transmitter efficiency (Tc) represents internal optical losses only (mirrors, windows, beam combiners) — not wall-plug efficiency. Defaults are 0.92–0.97 depending on node type. Do not confuse with electrical-to-optical conversion
 - Demo scene uses MW-class sources with 5 m apertures and 100 nrad tracking to deliver 10s of kW at GEO distance
 - Hover tooltips on all technical metrics (both views). Tooltip text is centralised in `tooltip.js` TOOLTIPS registry. Uses `data-tooltip` attributes and event delegation — dynamic elements work automatically
-- App defaults to Customer View on startup; toggle button in header switches between views
+- App defaults to Customer View on startup. The `dashboard-view` class is set on `<body>` in the HTML and the `#dashboard-hud` div has no initial `display: none`, so the customer layout renders on first paint without flashing the engineer view. `switchView('dashboard')` in main.js then sets up JS state. Toggle button in header switches between views.
 - Terrestrial tiles (OpenStreetMap) appear automatically when camera is within ~960 km of Earth surface
 - GitHub Pages deployed via Actions workflow from develop branch
