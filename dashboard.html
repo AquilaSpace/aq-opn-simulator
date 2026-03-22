@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aquila — Optical Power Network</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dashboard.css">
     <script type="importmap">
     {
@@ -55,15 +58,15 @@
     <!-- Top-right: revenue & power -->
     <div id="hud-right">
         <div class="hud-stat hud-stat-large">
-            <span class="hud-stat-value hud-accent" id="stat-power">0 W</span>
-            <span class="hud-stat-label">POWER DELIVERED</span>
+            <span class="hud-stat-value hud-power" id="stat-power">0 W</span>
+            <span class="hud-stat-label">INSTANTANEOUS POWER DELIVERED</span>
         </div>
         <div class="hud-stat hud-stat-large">
             <span class="hud-stat-value hud-revenue" id="stat-revenue">$0</span>
             <span class="hud-stat-label">REVENUE GENERATED</span>
         </div>
         <div class="hud-stat">
-            <span class="hud-stat-value" id="stat-uptime">—</span>
+            <span class="hud-stat-value hud-uptime" id="stat-uptime">—</span>
             <span class="hud-stat-label">NETWORK UPTIME</span>
         </div>
     </div>

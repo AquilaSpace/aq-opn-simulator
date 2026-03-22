@@ -9,17 +9,17 @@
 }
 
 :root {
-    --bg: #050510;
-    --hud-bg: rgba(8, 12, 28, 0.85);
-    --hud-border: rgba(60, 120, 255, 0.2);
-    --text: #c8d0e0;
-    --text-dim: #606880;
-    --accent: #4a9eff;
-    --accent-bright: #00d4ff;
-    --green: #00ff66;
+    --bg: #050508;
+    --hud-bg: rgba(8, 12, 20, 0.85);
+    --hud-border: rgba(104, 234, 211, 0.2);
+    --text: #e0e4e8;
+    --text-dim: #6a7080;
+    --accent: #68EAD3;
+    --accent-bright: #C3F5EA;
+    --green: #68EAD3;
     --amber: #ffaa00;
     --red: #ff3344;
-    --revenue: #00ff88;
+    --revenue: #68EAD3;
 }
 
 html, body {
@@ -28,7 +28,7 @@ html, body {
     overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 13px;
     line-height: 1.4;
 }
@@ -77,8 +77,11 @@ html, body {
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 3px;
-    color: var(--accent);
     text-transform: uppercase;
+    background: linear-gradient(135deg, #68EAD3, #C3F5EA);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .hud-stats {
@@ -96,17 +99,25 @@ html, body {
 .hud-stat-value {
     font-size: 20px;
     font-weight: 700;
-    color: var(--text);
+    color: #f0f4f8;
     min-width: 40px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
 .hud-stat-label {
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 1.5px;
-    color: var(--text-dim);
+    color: #8a96a8;
     text-transform: uppercase;
 }
+
+/* Left-side stat value tints for visual variety */
+#stat-sources { color: #FFA94D; }
+#stat-relays { color: #68C4EA; }
+#stat-orbital-customers { color: #C3F5EA; }
+#stat-ground-customers { color: #68EAD3; }
+#stat-links-active { color: #66D9A0; }
 
 /* --- Top-right: revenue & power ---------------------------- */
 #hud-right {
@@ -124,12 +135,29 @@ html, body {
     font-size: 28px;
 }
 
+.hud-stat-large .hud-stat-label {
+    color: #a0aab8;
+}
+
 .hud-accent {
     color: var(--accent-bright) !important;
 }
 
+/* Semantic HUD value colours — extended brand palette */
+.hud-power {
+    color: #FFA94D !important; /* warm amber — power/energy feel */
+}
+
+.hud-energy {
+    color: var(--accent) !important; /* brand aqua */
+}
+
 .hud-revenue {
-    color: var(--revenue) !important;
+    color: #66D9A0 !important; /* distinct green — financial */
+}
+
+.hud-uptime {
+    color: #E1F9F1 !important; /* pale aqua — clean/neutral */
 }
 
 /* --- Bottom-centre: action buttons ------------------------- */
@@ -154,7 +182,7 @@ html, body {
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    background: rgba(74, 158, 255, 0.08);
+    background: rgba(104, 234, 211, 0.08);
     border: 1px solid var(--hud-border);
     color: var(--text);
     border-radius: 6px;
@@ -169,7 +197,7 @@ html, body {
 }
 
 .hud-btn:hover {
-    background: rgba(74, 158, 255, 0.18);
+    background: rgba(104, 234, 211, 0.18);
     border-color: var(--accent);
     color: #fff;
 }
@@ -179,19 +207,19 @@ html, body {
 }
 
 .hud-btn-accent {
-    background: rgba(74, 158, 255, 0.15);
+    background: rgba(104, 234, 211, 0.15);
     border-color: var(--accent);
     color: var(--accent-bright);
 }
 
 .hud-btn-accent:hover {
-    background: rgba(74, 158, 255, 0.3);
+    background: rgba(104, 234, 211, 0.3);
 }
 
 .hud-btn-dim {
     color: var(--text-dim);
     background: transparent;
-    border-color: rgba(60, 120, 255, 0.1);
+    border-color: rgba(104, 234, 211, 0.1);
 }
 
 .hud-btn-dim:hover {
@@ -227,7 +255,7 @@ html, body {
 
 .speed-btn {
     background: transparent;
-    border: 1px solid rgba(60, 120, 255, 0.15);
+    border: 1px solid rgba(104, 234, 211, 0.15);
     color: var(--text-dim);
     padding: 3px 8px;
     border-radius: 4px;

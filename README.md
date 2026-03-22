@@ -11,13 +11,13 @@ Interactive 3D simulation tool for designing and analysing laser/optical wireles
 
 ### Two Views
 - **Engineer View** — Full sidebar with node editor, link inspector, beam settings, network stats, and time controls. For detailed network design and analysis.
-- **Customer View** — Clean full-screen HUD overlay for demonstrations. One-click deployment of sources, relays, and customers with auto-connect. Revenue and power delivery tracking. Suitable for non-technical audiences.
+- **Customer View** — Clean full-screen HUD overlay for demonstrations. One-click deployment of sources, relays, and customers with auto-connect. Instantaneous power, cumulative energy, revenue, and uptime tracking with colour-coded metrics. Suitable for non-technical audiences.
 
 ### Core
 - **3D Globe Scene** — Textured Earth and Moon at correct relative scale and distance, with starfield background and atmospheric glow
 - **Node System** — Place and configure ground sources, ground/orbital relays, ground/orbital customers, lunar installations, and mobile platforms
 - **Power Links** — Directed laser power links with colour-coded health status (active/marginal/broken) and animated energy flow particles. Link visuals track satellite positions smoothly every frame.
-- **Link Budget Analysis** — Full Gaussian beam optical link budget: transmit power, diffraction-limited divergence (θ = λ/πw₀), Gaussian capture fraction (1 − exp(−2r²/w²)), zenith-transmittance atmospheric model (H=2 km optical scale height), pointing loss, and margin over required power
+- **Link Budget Analysis** — Full Gaussian beam optical link budget: transmit power, diffraction-limited divergence (θ = λ/πw₀), Gaussian capture fraction (1 − exp(−2r²/w²)), zenith-transmittance atmospheric model (H=2 km optical scale height), pointing loss, overall link efficiency (P_rx/P_tx), and margin over required power
 - **Atmospheric Turbulence** — HV-5/7 Cn² profile integration for r₀ and θ₀, wavelength scaling, elevation correction, point-ahead anisoplanatism, Noll 87/13 tilt/HO Strehl decomposition, and ground station altitude-aware integration. Enabled by default.
 - **Hover Tooltips** — Every technical metric, parameter, and statistic has a hover tooltip explaining what it is, how it is calculated, and what affects it
 - **Beam Types** — Selectable wavelengths (1080 nm Yb fibre, 1550 nm eye-safe, 532 nm visible, custom) with per-link overrides
@@ -117,6 +117,10 @@ Uses a Gaussian beam propagation model (aperture-to-aperture):
 | Eye-Safe Telecom | 1550 nm | Urban / eye-safe corridors |
 | Freq-Doubled Green | 532 nm | Visible reference / underwater |
 | Custom | User-defined | — |
+
+## Brand
+
+UI follows the Aquila Brand Guidelines: Heebo typeface, aqua (#68EAD3) primary accent with extended palette (amber for power metrics, green for financial, pale aqua for neutral). Dark backgrounds (#0a0a0e). See `Aquila - Brand Guidelines.pdf` for full specification.
 
 ## Licence
 

@@ -103,6 +103,7 @@ export function showLinkInspector(linkId) {
         }
 
         rows.push(['Total path loss', `${b.totalPathLoss_dB.toFixed(2)} dB`, 'budget-path-loss']);
+        rows.push(['Overall efficiency', `${(b.overallEfficiency * 100).toFixed(4)}% (${(10 * Math.log10(Math.max(b.overallEfficiency, 1e-30))).toFixed(2)} dB)`, 'budget-overall-eff']);
         rows.push(['Elevation angle', `${b.elevAngle_deg.toFixed(1)}\u00b0`, 'budget-elevation']);
         rows.push(['LOS clear', b.losOk ? 'Yes' : 'BLOCKED', 'budget-los']);
 

@@ -10,14 +10,14 @@
 }
 
 :root {
-    --bg: #0a0a0f;
-    --panel-bg: #1a1a2e;
-    --panel-border: #2a2a3e;
-    --text: #e0e0e8;
-    --text-dim: #888899;
-    --accent: #4a9eff;
-    --accent-light: #00d4ff;
-    --link-active: #00ff44;
+    --bg: #0a0a0e;
+    --panel-bg: #131318;
+    --panel-border: #252530;
+    --text: #e0e4e8;
+    --text-dim: #7a8090;
+    --accent: #68EAD3;
+    --accent-light: #C3F5EA;
+    --link-active: #68EAD3;
     --link-marginal: #ffaa00;
     --link-broken: #ff3344;
     --sidebar-width: 300px;
@@ -31,7 +31,7 @@ html, body {
     overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 13px;
     line-height: 1.4;
 }
@@ -84,7 +84,7 @@ html, body {
 #header button:hover {
     color: var(--text);
     border-color: var(--accent);
-    background: rgba(74, 158, 255, 0.1);
+    background: rgba(104, 234, 211, 0.1);
 }
 
 /* --- Layout ------------------------------------------------ */
@@ -303,7 +303,7 @@ html, body {
 .btn:hover {
     color: var(--text);
     border-color: var(--accent);
-    background: rgba(74, 158, 255, 0.1);
+    background: rgba(104, 234, 211, 0.1);
 }
 
 .btn-primary {
@@ -510,11 +510,11 @@ html, body {
 }
 
 .node-list-item:hover {
-    background: rgba(74, 158, 255, 0.1);
+    background: rgba(104, 234, 211, 0.1);
 }
 
 .node-list-item.selected {
-    background: rgba(74, 158, 255, 0.2);
+    background: rgba(104, 234, 211, 0.2);
 }
 
 .node-list-item .node-colour-dot {
@@ -556,11 +556,11 @@ html, body {
 }
 
 .link-list-item:hover {
-    background: rgba(74, 158, 255, 0.1);
+    background: rgba(104, 234, 211, 0.1);
 }
 
 .link-list-item.selected {
-    background: rgba(74, 158, 255, 0.2);
+    background: rgba(104, 234, 211, 0.2);
 }
 
 .link-list-item .link-status-dot {
@@ -706,7 +706,7 @@ html, body {
     left: 0; right: 0; bottom: 0;
     pointer-events: none;
     z-index: 10;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-family: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 #dashboard-hud #hud-actions,
@@ -746,8 +746,11 @@ html, body {
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 2px;
-    color: var(--accent);
     text-transform: uppercase;
+    background: linear-gradient(135deg, #68EAD3, #C3F5EA);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .hud-stats {
@@ -765,17 +768,25 @@ html, body {
 .hud-stat-value {
     font-size: 20px;
     font-weight: 700;
-    color: var(--text);
+    color: #f0f4f8;
     min-width: 40px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
 .hud-stat-label {
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 1.5px;
-    color: var(--text-dim);
+    color: #8a96a8;
     text-transform: uppercase;
 }
+
+/* Left-side stat value tints for visual variety */
+#dash-stat-sources { color: #FFA94D; }
+#dash-stat-relays { color: #68C4EA; }
+#dash-stat-orbital-customers { color: #C3F5EA; }
+#dash-stat-ground-customers { color: #68EAD3; }
+#dash-stat-links-active { color: #66D9A0; }
 
 #hud-right {
     position: absolute;
@@ -792,12 +803,29 @@ html, body {
     font-size: 28px;
 }
 
+.hud-stat-large .hud-stat-label {
+    color: #a0aab8;
+}
+
 .hud-accent {
     color: var(--accent-light) !important;
 }
 
+/* Semantic HUD value colours — extended brand palette */
+.hud-power {
+    color: #FFA94D !important; /* warm amber — power/energy feel */
+}
+
+.hud-energy {
+    color: var(--accent) !important; /* brand aqua */
+}
+
 .hud-revenue {
-    color: #00ff88 !important;
+    color: #66D9A0 !important; /* distinct green — financial */
+}
+
+.hud-uptime {
+    color: #E1F9F1 !important; /* pale aqua — clean/neutral */
 }
 
 /* HUD action buttons */
@@ -810,7 +838,7 @@ html, body {
     align-items: center;
     gap: 6px;
     background: rgba(8, 12, 28, 0.85);
-    border: 1px solid rgba(60, 120, 255, 0.2);
+    border: 1px solid rgba(104, 234, 211, 0.2);
     border-radius: 8px;
     padding: 6px 12px;
     backdrop-filter: blur(12px);
@@ -822,8 +850,8 @@ html, body {
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    background: rgba(74, 158, 255, 0.08);
-    border: 1px solid rgba(60, 120, 255, 0.2);
+    background: rgba(104, 234, 211, 0.08);
+    border: 1px solid rgba(104, 234, 211, 0.2);
     color: var(--text);
     border-radius: 6px;
     cursor: pointer;
@@ -836,7 +864,7 @@ html, body {
 }
 
 .hud-btn:hover {
-    background: rgba(74, 158, 255, 0.18);
+    background: rgba(104, 234, 211, 0.18);
     border-color: var(--accent);
     color: #fff;
 }
@@ -846,30 +874,30 @@ html, body {
 }
 
 .hud-btn-accent {
-    background: rgba(74, 158, 255, 0.15);
+    background: rgba(104, 234, 211, 0.15);
     border-color: var(--accent);
     color: var(--accent-light);
 }
 
 .hud-btn-accent:hover {
-    background: rgba(74, 158, 255, 0.3);
+    background: rgba(104, 234, 211, 0.3);
 }
 
 .hud-btn-dim {
     color: var(--text-dim);
     background: transparent;
-    border-color: rgba(60, 120, 255, 0.1);
+    border-color: rgba(104, 234, 211, 0.1);
 }
 
 .hud-btn-dim:hover {
     color: var(--text);
-    border-color: rgba(60, 120, 255, 0.2);
+    border-color: rgba(104, 234, 211, 0.2);
 }
 
 .hud-sep {
     width: 1px;
     height: 24px;
-    background: rgba(60, 120, 255, 0.2);
+    background: rgba(104, 234, 211, 0.2);
     margin: 0 4px;
 }
 
@@ -908,20 +936,20 @@ html, body {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: rgba(74, 158, 255, 0.5);
+    background: rgba(104, 234, 211, 0.5);
     cursor: pointer;
     transition: background 0.15s;
 }
 
 #hud-timebar .time-slider::-webkit-slider-thumb:hover {
-    background: rgba(74, 158, 255, 0.8);
+    background: rgba(104, 234, 211, 0.8);
 }
 
 #hud-timebar .time-slider::-moz-range-thumb {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: rgba(74, 158, 255, 0.5);
+    background: rgba(104, 234, 211, 0.5);
     border: none;
     cursor: pointer;
 }
@@ -940,7 +968,7 @@ html, body {
 
 .dash-speed-btn {
     background: transparent;
-    border: 1px solid rgba(60, 120, 255, 0.15);
+    border: 1px solid rgba(104, 234, 211, 0.15);
     color: var(--text-dim);
     padding: 3px 8px;
     border-radius: 4px;
@@ -1040,6 +1068,6 @@ body.dashboard-view #dashboard-hud {
 #dash-btn-loop.active {
     color: var(--accent-light) !important;
     border-color: var(--accent) !important;
-    background: rgba(74, 158, 255, 0.15);
+    background: rgba(104, 234, 211, 0.15);
 }
 

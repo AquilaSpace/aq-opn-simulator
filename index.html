@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aquila Optical Power Network</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script type="importmap">
     {
@@ -199,7 +202,7 @@
             <div class="panel-body">
                 <div class="legend-items">
                     <div class="legend-item">
-                        <span class="legend-colour" style="background: #00ff44;"></span>
+                        <span class="legend-colour" style="background: #68EAD3;"></span>
                         <span>Transmitting Power</span>
                     </div>
                     <div class="legend-item">
@@ -278,11 +281,11 @@
     <!-- Top-right: revenue & power -->
     <div id="hud-right">
         <div class="hud-stat hud-stat-large" id="dash-stat-power-item">
-            <span class="hud-stat-value hud-accent" id="dash-stat-power">0 W</span>
-            <span class="hud-stat-label">POWER DELIVERED</span>
+            <span class="hud-stat-value hud-power" id="dash-stat-power">0 W</span>
+            <span class="hud-stat-label">INSTANTANEOUS POWER DELIVERED</span>
         </div>
         <div class="hud-stat hud-stat-large" id="dash-stat-energy-item">
-            <span class="hud-stat-value hud-accent" id="dash-stat-energy">0 Wh</span>
+            <span class="hud-stat-value hud-energy" id="dash-stat-energy">0 Wh</span>
             <span class="hud-stat-label">CUMULATIVE ENERGY</span>
         </div>
         <div class="hud-stat hud-stat-large" id="dash-stat-revenue-item">
@@ -290,7 +293,7 @@
             <span class="hud-stat-label">REVENUE GENERATED</span>
         </div>
         <div class="hud-stat" id="dash-stat-uptime-item">
-            <span class="hud-stat-value" id="dash-stat-uptime">&mdash;</span>
+            <span class="hud-stat-value hud-uptime" id="dash-stat-uptime">&mdash;</span>
             <span class="hud-stat-label">DELIVERY AVAILABILITY</span>
         </div>
     </div>

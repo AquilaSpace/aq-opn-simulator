@@ -144,7 +144,7 @@ export const NODE_TYPES = {
             transmitPower_kW: 1000,
             apertureDiameter_m: 5.0,
             trackingAccuracy_mrad: 0.0001,
-            transmitterEfficiency: 0.90,
+            transmitterEfficiency: 0.97,
             totalAvailablePower_kW: 2000,
             outputBeams: 4,
         },
@@ -159,9 +159,9 @@ export const NODE_TYPES = {
             transmitPower_kW: 500,
             apertureDiameter_m: 4.0,
             trackingAccuracy_mrad: 0.0001,
-            transmitterEfficiency: 0.88,
+            transmitterEfficiency: 0.95,
             receiveAperture_m: 5.0,
-            retransmitEfficiency: 0.80,
+            retransmitEfficiency: 0.90,
             maxSimultaneousLinks: 4,
         },
     },
@@ -189,9 +189,9 @@ export const NODE_TYPES = {
             transmitPower_kW: 500,
             apertureDiameter_m: 5.0,
             trackingAccuracy_mrad: 0.0001,
-            transmitterEfficiency: 0.90,
+            transmitterEfficiency: 0.97,
             receiveAperture_m: 5.0,
-            retransmitEfficiency: 0.80,
+            retransmitEfficiency: 0.90,
             maxSimultaneousLinks: 6,
             orbitalElements: {
                 semiMajorAxis_km: 42164,
@@ -235,7 +235,7 @@ export const NODE_TYPES = {
             transmitPower_kW: 50,
             apertureDiameter_m: 3.0,
             trackingAccuracy_mrad: 0.0001,
-            transmitterEfficiency: 0.85,
+            transmitterEfficiency: 0.95,
             requiredPower_kW: 5,
         },
     },
@@ -249,7 +249,7 @@ export const NODE_TYPES = {
             transmitPower_kW: 5,
             apertureDiameter_m: 0.5,
             trackingAccuracy_mrad: 0.001,
-            transmitterEfficiency: 0.80,
+            transmitterEfficiency: 0.92,
             speed_ms: 50,
             heading_deg: 0,
             altitude_m: 1000,
@@ -274,7 +274,7 @@ export const ORBITAL_PRESETS = {
 // ---------------------------------------------------------------------------
 
 export const LINK_STATUS = {
-    ACTIVE:   { label: 'Transmitting',   colour: 0x00ff44, colourHex: '#00ff44' },
+    ACTIVE:   { label: 'Transmitting',   colour: 0x68EAD3, colourHex: '#68EAD3' },
     MARGINAL: { label: 'Marginal', colour: 0xffaa00, colourHex: '#ffaa00' },
     BROKEN:   { label: 'Broken',   colour: 0xff3344, colourHex: '#ff3344' },
     INACTIVE: { label: 'Inactive', colour: 0x666688, colourHex: '#666688' },
@@ -288,13 +288,13 @@ export const MARGINAL_THRESHOLD_DB = 3;
 // ---------------------------------------------------------------------------
 
 export const UI_COLOURS = {
-    background: '#0a0a0f',
-    panelBg: '#1a1a2e',
-    panelBorder: '#2a2a3e',
-    text: '#e0e0e8',
-    textDim: '#888899',
-    accent: '#4a9eff',
-    accentLight: '#00d4ff',
+    background: '#0a0a0e',
+    panelBg: '#131318',
+    panelBorder: '#252530',
+    text: '#e0e4e8',
+    textDim: '#7a8090',
+    accent: '#68EAD3',
+    accentLight: '#C3F5EA',
 };
 
 // ---------------------------------------------------------------------------

@@ -21,4 +21,9 @@ node_modules/
 # Build artefacts
 build/
 dist/
-brandmark-black-2000px.svg:Zone.Identifier
+
+# Large binary assets (use LFS or share externally)
+*.pdf
+
+# Windows zone identifiers
+*:Zone.Identifier

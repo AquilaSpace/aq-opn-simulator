@@ -571,7 +571,7 @@ function updateLinkList() {
         const toName = toNode ? toNode.name : '?';
 
         const statusColour = {
-            ACTIVE: '#00ff44', MARGINAL: '#ffaa00',
+            ACTIVE: '#68EAD3', MARGINAL: '#ffaa00',
             BROKEN: '#ff3344', INACTIVE: '#666688',
         }[link.status] || '#666688';
 

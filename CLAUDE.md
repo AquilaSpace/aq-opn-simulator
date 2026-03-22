@@ -32,6 +32,17 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 - physics.js must have zero imports from other project files (except constants.js). Keep it testable in isolation.
 - British English for all prose and user-facing strings.
 
+## Brand / Styling
+Follows Aquila Brand Guidelines (`Aquila - Brand Guidelines.pdf` in repo root).
+- **Font**: Heebo (Google Fonts) — Medium for headings, Regular for body. Loaded via `<link>` in both HTML files.
+- **Primary accent**: #68EAD3 (brand aqua). Light variant: #C3F5EA.
+- **Extended palette**: warm amber (#FFA94D) for power metrics, green (#66D9A0) for financial/revenue, pale aqua (#E1F9F1) for neutral values, sky blue (#68C4EA) for satellite/relay stats.
+- **Backgrounds**: #0a0a0e (body), #131318 (panels), #252530 (borders).
+- **CSS variables**: all theme colours defined as CSS custom properties in `:root` of both style.css and dashboard.css. Use variables, not hardcoded hex, in new CSS.
+- **Stat values** use monospace font (SF Mono / Fira Code / Consolas) for numerical readability; labels use Heebo.
+- Active link status colour is brand aqua (#68EAD3), not green.
+- Brandmark SVG is dark (#0C0C0C); CSS `filter: invert(1)` makes it visible on dark theme.
+
 ## Key Modules
 - `constants.js` — Scale factors, physical constants, node type registry (8 types incl. ORBITAL_CUSTOMER), beam types, zenith transmission table, turbulence constants, coordinate helpers
 - `physics.js` — Pure link budget calculations (Gaussian beam model: θ=λ/πw₀ divergence, 1−exp(−2r²/w²) capture), atmospheric attenuation (zenith transmittance + H=2 km optical scale height), LOS
@@ -39,7 +50,7 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 - `tooltip.js` — Hover tooltip system with centralised TOOLTIPS registry; event delegation so dynamic elements work automatically
 - `nodeManager.js` — Node CRUD, Three.js mesh creation, selection, dragging
 - `linkManager.js` — Link CRUD, beam rendering with particles, status colour coding, per-frame visual position updates
-- `linkBudget.js` — Wraps physics.js + turbulenceModel.js for per-link budget computation with node parameters; exposes turbulence fields (r₀, θ₀, point-ahead, Strehl ratios); status classification (ACTIVE/MARGINAL/BROKEN/INACTIVE)
+- `linkBudget.js` — Wraps physics.js + turbulenceModel.js for per-link budget computation with node parameters; exposes turbulence fields (r₀, θ₀, point-ahead, Strehl ratios), overall link efficiency (P_rx/P_tx); status classification (ACTIVE/MARGINAL/BROKEN/INACTIVE)
 - `orbitalMechanics.js` — Keplerian propagation with J2 (Newton-Raphson Kepler solver), ECI→scene coords, orbit trail rendering
 - `timeController.js` — Play/pause/speed (up to 10000×), epoch display, per-frame orbital propagation with throttled link recompute
 - `uptimeTracker.js` — Per-node power uptime percentage tracking
@@ -65,9 +76,9 @@ Earth mesh is rotated -π/2 on Y so the texture aligns Greenwich to +Z.
 - Atmospheric transmission uses optical scale height H=2 km (not pressure scale height 8.5 km). Zenith transmittance is looked up per beam type + weather from ZENITH_TRANSMISSION table in constants.js
 - Point-ahead anisoplanatism dominates for LEO targets: θ_PA ≈ 51 µrad at 400 km, while θ₀ ≈ 15–18 µrad at 1080 nm. This means HO AO correction is ineffective; only tip-tilt helps
 - Tilt Strehl uncertainty is ~30–50% (conservative exponential model). HO Strehl is capped at AO_IDEAL_STREHL=0.7
+- Transmitter efficiency (Tc) represents internal optical losses only (mirrors, windows, beam combiners) — not wall-plug efficiency. Defaults are 0.92–0.97 depending on node type. Do not confuse with electrical-to-optical conversion
 - Demo scene uses MW-class sources with 5 m apertures and 100 nrad tracking to deliver 10s of kW at GEO distance
 - Hover tooltips on all technical metrics (both views). Tooltip text is centralised in `tooltip.js` TOOLTIPS registry. Uses `data-tooltip` attributes and event delegation — dynamic elements work automatically
 - App defaults to Customer View on startup; toggle button in header switches between views
 - Terrestrial tiles (OpenStreetMap) appear automatically when camera is within ~960 km of Earth surface
-- Brandmark SVG is dark (#0C0C0C); CSS `filter: invert(1)` makes it visible on dark theme
 - GitHub Pages deployed via Actions workflow from develop branch

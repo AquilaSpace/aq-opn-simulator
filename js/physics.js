@@ -102,6 +102,7 @@ export function computeLinkBudget(opts) {
         rxPower_kW: rxPower_W / 1000,
         rxPower_dBW,
         totalPathLoss_dB: txPower_dBW - rxPower_dBW, // positive value = loss
+        overallEfficiency: txPower_W > 0 ? rxPower_W / txPower_W : 0,
     };
 }
 

@@ -70,7 +70,7 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
     // Node parameters
     const txPower_kW = fromNode.params.transmitPower_kW || 0;
     const txPower_W = txPower_kW * 1000;
-    const txEfficiency = fromNode.params.transmitterEfficiency || 0.85;
+    const txEfficiency = fromNode.params.transmitterEfficiency || 0.95;
     const txAperture = fromNode.params.apertureDiameter_m || 0.3;
     const rxAperture = toNode.params.receiveAperture_m || toNode.params.apertureDiameter_m || 0.3;
     const trackingJitter_rad = (fromNode.params.trackingAccuracy_mrad || 0.1) * 1e-3;
@@ -143,6 +143,7 @@ export function computeFullLinkBudget(link, beamTypeKey, atmCondKey) {
         budget.rxPower_kW = rxPower_W / 1000;
         budget.rxPower_dBW = rxPower_dBW;
         budget.totalPathLoss_dB = budget.txPower_dBW - rxPower_dBW;
+        budget.overallEfficiency = txPower_W > 0 ? rxPower_W / txPower_W : 0;
     }
 
     // Required power (from receiver node)

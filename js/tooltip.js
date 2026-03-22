@@ -138,7 +138,7 @@ export const TOOLTIPS = {
     'budget-tx-power':
         'Optical output power of the transmitter node. Set per-node in the Node Editor.',
     'budget-tx-efficiency':
-        'Fraction of transmit power that exits the aperture as usable beam. Accounts for internal optical losses.',
+        'Fraction of transmit power that exits the aperture as usable beam. Accounts for internal optical losses (mirrors, windows, beam combiners).',
     'budget-wavelength':
         'Laser wavelength. Affects beam divergence (\u03b8 \u221d \u03bb/D) and atmospheric absorption windows.',
     'budget-distance':
@@ -159,6 +159,8 @@ export const TOOLTIPS = {
         'Atmospheric attenuation using zenith transmittance + optical scale height (H=2 km). T = exp(\u2212\u03c4\u2080 \u00d7 exp(\u2212h/H) / sin(el)). Depends on beam type, weather, elevation, and ground altitude.',
     'budget-path-loss':
         'Total end-to-end loss from transmitter to receiver in dB, including all loss terms.',
+    'budget-overall-eff':
+        'Overall link efficiency: P_rx / P_tx. The fraction of transmitted optical power that arrives at the receiver, accounting for all losses (optics, divergence, capture, pointing, atmosphere, turbulence).',
     'budget-elevation':
         'Angle above local horizon at the lower endpoint. Low elevation = longer atmospheric path = more attenuation.',
     'budget-los':
@@ -174,7 +176,7 @@ export const TOOLTIPS = {
     'ne-tx-power':
         'Optical output power of the laser transmitter in kilowatts.',
     'ne-tx-efficiency':
-        'Optical-to-optical transmitter efficiency. 1.0 = no internal loss. Typical fibre laser: 0.85\u20130.95.',
+        'Optical-to-optical transmitter efficiency. 1.0 = no internal loss. Typical fibre laser internal optics: 0.92\u20130.98.',
     'ne-aperture':
         'Primary optical aperture diameter. Beam divergence \u03b8 = \u03bb/(\u03c0 \u00d7 D/2) \u2014 larger aperture = tighter beam.',
     'ne-tracking':
